@@ -77,6 +77,8 @@ class StorageManager {
                     completed++;
                     if (completed === total) {
                         console.log(`✅ ${total} productos guardados`);
+                        // Actualizar caché de estadísticas
+                        this._cachedProductCount = total;
                         resolve();
                     }
                 };
@@ -185,21 +187,49 @@ class StorageManager {
      */
     getStats() {
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['productos'], 'readonly');
-            const store = transaction.objectStore('productos');
-            const request = store.count();
-            
-                request.onsuccess = () => {
+            // Verificar que la base de datos esté disponible
+            if (!this.db) {
+                console.log('⚠️ Base de datos no inicializada, usando estadísticas en caché');
                 resolve({
-                    totalProducts: request.result,
+                    totalProducts: this._cachedProductCount || 0,
                     lastSync: this.getLastSyncTime(),
                     dbSize: this.estimateDBSize()
                 });
-            };
+                return;
+            }
             
-            request.onerror = () => {
-                reject(request.error);
-            };
+            try {
+                const transaction = this.db.transaction(['productos'], 'readonly');
+                const store = transaction.objectStore('productos');
+                const request = store.count();
+                
+                request.onsuccess = () => {
+                    const stats = {
+                        totalProducts: request.result,
+                        lastSync: this.getLastSyncTime(),
+                        dbSize: this.estimateDBSize()
+                    };
+                    // Actualizar caché
+                    this._cachedProductCount = request.result;
+                    resolve(stats);
+                };
+                
+                request.onerror = () => {
+                    console.log('⚠️ Error al obtener estadísticas, usando caché');
+                    resolve({
+                        totalProducts: this._cachedProductCount || 0,
+                        lastSync: this.getLastSyncTime(),
+                        dbSize: this.estimateDBSize()
+                    });
+                };
+            } catch (error) {
+                console.log('⚠️ Error al acceder a la base de datos:', error);
+                resolve({
+                    totalProducts: this._cachedProductCount || 0,
+                    lastSync: this.getLastSyncTime(),
+                    dbSize: this.estimateDBSize()
+                });
+            }
         });
     }
 

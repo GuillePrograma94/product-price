@@ -18,7 +18,7 @@ class UIManager {
     /**
      * Inicializa la interfaz de usuario
      */
-    initialize() {
+    async initialize() {
         // Verificar que estamos en en contexto válido
         if (typeof document === 'undefined') {
             console.error('❌ UIManager: document no está disponible');
@@ -30,7 +30,7 @@ class UIManager {
         
         this.cacheElements();
         this.bindEvents();
-        this.updateUI();
+        await this.updateUI();
         
         console.log('✅ UI Manager inicializado - Labels Reader');
     }
@@ -156,18 +156,32 @@ class UIManager {
     /**
      * Actualiza la interfaz de usuario
      */
-    updateUI() {
-        this.updateSearchStats();
+    async updateUI() {
+        await this.updateSearchStats();
         console.log('✅ UI actualizada');
     }
 
     /**
      * Actualiza las estadísticas de búsqueda
      */
-    updateSearchStats() {
-        if (window.storageManager && window.storageManager.getStats) {
-            const stats = window.storageManager.getStatsSync();
-            this.elements.productsCount.textContent = `${stats.totalProducts || 0} productos disponibles`;
+    async updateSearchStats() {
+        if (window.storageManager && window.storageManager.isAvailable()) {
+            try {
+                const stats = await window.storageManager.getStats();
+                if (this.elements.productsCount) {
+                    this.elements.productsCount.textContent = `${stats.totalProducts || 0} productos disponibles`;
+                }
+            } catch (error) {
+                console.log('⚠️ Error al obtener estadísticas, usando valor por defecto');
+                if (this.elements.productsCount) {
+                    this.elements.productsCount.textContent = '0 productos disponibles';
+                }
+            }
+        } else {
+            console.log('⚠️ StorageManager no disponible, usando valor por defecto');
+            if (this.elements.productsCount) {
+                this.elements.productsCount.textContent = '0 productos disponibles';
+            }
         }
     }
 
@@ -564,10 +578,15 @@ class UIManager {
 }
 
 // Inicializar UI Manager cuando la página esté completamente cargada
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     console.log('🌐 Página completamente cargada, inicializando UIManager...');
     console.log('📄 Estado del DOM:', document.readyState);
-window.ui = new UIManager();
-    window.ui.initialize();
+    
+    // Crear instancia del UIManager
+    window.ui = new UIManager();
+    
+    // Inicializar de forma asíncrona
+    await window.ui.initialize();
+    
     console.log('🎯 Labels Reader UI Manager creado');
 });
