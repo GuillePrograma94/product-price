@@ -1,4 +1,4 @@
-package com.labelsproductos.mobile;
+package com.labelsproductos.reader;
 
 import com.getcapacitor.BridgeActivity;
 

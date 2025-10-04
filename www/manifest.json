@@ -1,7 +1,7 @@
 {
-    "name": "Labels Productos - Móvil",
-    "short_name": "Labels Móvil",
-    "description": "Aplicación móvil para crear listas de productos y generar códigos de acceso",
+    "name": "Labels Productos - Reader",
+    "short_name": "Labels Reader",
+    "description": "Aplicación móvil para lectura y gestión de productos",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#f8fafc",

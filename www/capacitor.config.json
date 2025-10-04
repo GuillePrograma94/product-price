@@ -1,6 +1,6 @@
 {
-  "appId": "com.labelsproductos.mobile",
-  "appName": "Labels Productos",
+  "appId": "com.labelsproductos.reader",
+  "appName": "Labels Reader",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

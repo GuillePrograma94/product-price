@@ -1,7 +1,7 @@
 {
-  "name": "mobile_web_app",
+  "name": "mobile_reader",
   "version": "1.0.0",
-  "description": "Aplicación web móvil para crear listas de productos y generar códigos de acceso que pueden ser utilizados en la aplicación de escritorio.",
+  "description": "Aplicación móvil para lectura y gestión de productos - Reader versión.",
   "main": "config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

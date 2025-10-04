@@ -1,6 +1,6 @@
-# Labels Productos - Aplicación Móvil
+# Labels Reader - Aplicación Móvil
 
-Aplicación web móvil para crear listas de productos y generar códigos de acceso que pueden ser utilizados en la aplicación de escritorio.
+Aplicación móvil para lectura y gestión de productos - Reader versión optimizada para consulta de información.
 
 ## 🚀 Características
 
@@ -158,8 +158,8 @@ const APP_CONFIG = {
 ```json
 // Personalizar manifest.json
 {
-    "name": "Tu Nombre de App",
-    "short_name": "Tu App",
+    "name": "Labels Reader",
+    "short_name": "Reader",
     "theme_color": "#tu-color",
     "background_color": "#tu-color-fondo"
 }
@@ -169,7 +169,7 @@ const APP_CONFIG = {
 
 ### Estructura del Proyecto
 ```
-mobile_web_app/
+mobile_reader/
 ├── index.html          # Página principal
 ├── styles.css          # Estilos CSS
 ├── manifest.json       # Configuración PWA
