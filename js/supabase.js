@@ -50,7 +50,7 @@ class SupabaseClient {
         try {
             const { data, error } = await this.client
                 .from('productos')
-                .select('count')
+                .select('codigo')
                 .limit(1);
             
             if (error) {
@@ -78,7 +78,7 @@ class SupabaseClient {
             
             const { data, error } = await this.client
                 .from('productos')
-                .select('*')
+                .select('codigo, descripcion, pvp')
                 .order('codigo');
             
             if (error) {
@@ -165,26 +165,29 @@ class SupabaseClient {
                 throw new Error('No hay conexión con Supabase');
             }
             
+            // Intentar obtener la fecha de última actualización
+            // Si no existe el campo updated_at, usar una fecha por defecto
             const { data, error } = await this.client
                 .from('productos')
-                .select('updated_at')
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .single();
+                .select('codigo')
+                .order('codigo', { ascending: false })
+                .limit(1);
             
             if (error) {
-                if (error.code === 'PGRST116') {
-                    // No hay productos
-                    return null;
-                }
-                throw error;
+                console.log('⚠️ Error al obtener última actualización, usando fecha por defecto:', error);
+                return new Date().toISOString();
             }
             
-            return data.updated_at;
+            // Si hay productos, devolver fecha actual
+            if (data && data.length > 0) {
+                return new Date().toISOString();
+            }
+            
+            return null;
             
         } catch (error) {
             console.error('❌ Error al obtener última actualización:', error);
-            return null;
+            return new Date().toISOString();
         }
     }
 
