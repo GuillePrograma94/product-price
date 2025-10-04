@@ -121,7 +121,7 @@ class BarcodeScanner {
             // Iniciar escaneo
             this.startScanning();
             
-            window.ui.showToast('Escáner iniciado', 'success');
+            // window.ui.showToast('Escáner iniciado', 'success'); // Eliminado para mejor UX
 
         } catch (error) {
             console.error('Error al abrir escáner:', error);
