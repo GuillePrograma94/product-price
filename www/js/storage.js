@@ -248,53 +248,84 @@ class StorageManager {
     }
 
     /**
-     * Busca productos con algoritmo optimizado y preciso
+     * Busca productos con algoritmo ultra-optimizado
      */
     async searchProducts(query, limit = 50) {
         try {
-            const productos = await this.getProducts();
-            const codigos = await this.getSecondaryCodes();
-            
             if (!query || query.trim().length === 0) {
                 return [];
             }
             
             const queryWords = this.parseQuery(query);
+            const queryNormalized = queryWords.join('');
             const results = [];
-            const processedCodes = new Set(); // Para evitar duplicados
-
-            // Crear índices para búsqueda más rápida
-            const productosIndex = productos.map(p => ({
-                ...p,
-                codigoNormalizado: this.normalizeText(p.codigo),
-                descripcionNormalizada: this.normalizeText(p.descripcion)
-            }));
-
-            // Buscar en productos principales (optimizado)
-            for (const producto of productosIndex) {
-                const relevance = this.calculateRelevance(producto, queryWords);
-                
-                if (relevance > 0) {
-                    results.push({
-                        ...producto,
-                        relevance: relevance,
-                        matchType: 'producto_principal'
-                    });
-                    processedCodes.add(producto.codigo);
-                }
+            
+            // Si la búsqueda parece ser un código (solo números/letras), buscar directamente
+            if (this.isCodeSearch(queryWords)) {
+                console.log('🔍 Búsqueda de código detectada, usando algoritmo rápido');
+                return await this.searchByCode(queryNormalized, limit);
             }
+            
+            // Para búsquedas de texto, usar algoritmo completo pero optimizado
+            console.log('🔍 Búsqueda de texto detectada, usando algoritmo completo');
+            return await this.searchByText(queryWords, limit);
+            
+        } catch (error) {
+            console.error('❌ Error en búsqueda optimizada:', error);
+            return [];
+        }
+    }
 
-            // Buscar en códigos secundarios (optimizado)
+    /**
+     * Determina si la búsqueda es un código
+     */
+    isCodeSearch(queryWords) {
+        // Si es una sola palabra y contiene principalmente números/letras
+        if (queryWords.length === 1) {
+            const word = queryWords[0];
+            // Si es principalmente alfanumérico y tiene más de 3 caracteres
+            return /^[a-zA-Z0-9]+$/.test(word) && word.length >= 3;
+        }
+        
+        // Si son múltiples palabras pero todas son alfanuméricas cortas
+        return queryWords.every(word => /^[a-zA-Z0-9]{1,6}$/.test(word));
+    }
+
+    /**
+     * Búsqueda rápida por código
+     */
+    async searchByCode(codeQuery, limit) {
+        const productos = await this.getProducts();
+        const codigos = await this.getSecondaryCodes();
+        const results = [];
+        const processedCodes = new Set();
+
+        // Búsqueda directa en códigos principales (más rápida)
+        for (const producto of productos) {
+            const codigoNormalizado = this.normalizeText(producto.codigo);
+            
+            if (codigoNormalizado.includes(codeQuery)) {
+                results.push({
+                    ...producto,
+                    relevance: codigoNormalizado === codeQuery ? 100 : 50,
+                    matchType: 'producto_principal'
+                });
+                processedCodes.add(producto.codigo);
+            }
+        }
+
+        // Búsqueda en códigos secundarios (solo si no hay muchos resultados)
+        if (results.length < 5) {
             for (const codigo of codigos) {
-                const productoPrincipal = productosIndex.find(p => p.codigo === codigo.codigo_principal);
+                const codigoSecNormalizado = this.normalizeText(codigo.codigo_secundario);
                 
-                if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
-                    const relevance = this.calculateRelevance(productoPrincipal, queryWords, codigo.codigo_secundario);
+                if (codigoSecNormalizado.includes(codeQuery)) {
+                    const productoPrincipal = productos.find(p => p.codigo === codigo.codigo_principal);
                     
-                    if (relevance > 0) {
+                    if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
                         results.push({
                             ...productoPrincipal,
-                            relevance: relevance,
+                            relevance: codigoSecNormalizado === codeQuery ? 80 : 40,
                             matchType: 'codigo_secundario',
                             codigoSecundario: codigo.codigo_secundario
                         });
@@ -302,17 +333,65 @@ class StorageManager {
                     }
                 }
             }
-
-            // Ordenar por relevancia (mayor a menor)
-            results.sort((a, b) => b.relevance - a.relevance);
-
-            // Limitar resultados
-            return results.slice(0, limit);
-            
-        } catch (error) {
-            console.error('❌ Error en búsqueda optimizada:', error);
-            return [];
         }
+
+        // Ordenar por relevancia
+        results.sort((a, b) => b.relevance - a.relevance);
+        return results.slice(0, limit);
+    }
+
+    /**
+     * Búsqueda completa por texto
+     */
+    async searchByText(queryWords, limit) {
+        const productos = await this.getProducts();
+        const codigos = await this.getSecondaryCodes();
+        const results = [];
+        const processedCodes = new Set();
+
+        // Crear índices para búsqueda más rápida
+        const productosIndex = productos.map(p => ({
+            ...p,
+            codigoNormalizado: this.normalizeText(p.codigo),
+            descripcionNormalizada: this.normalizeText(p.descripcion)
+        }));
+
+        // Buscar en productos principales (optimizado)
+        for (const producto of productosIndex) {
+            const relevance = this.calculateRelevance(producto, queryWords);
+            
+            if (relevance > 0) {
+                results.push({
+                    ...producto,
+                    relevance: relevance,
+                    matchType: 'producto_principal'
+                });
+                processedCodes.add(producto.codigo);
+            }
+        }
+
+        // Buscar en códigos secundarios (optimizado)
+        for (const codigo of codigos) {
+            const productoPrincipal = productosIndex.find(p => p.codigo === codigo.codigo_principal);
+            
+            if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
+                const relevance = this.calculateRelevance(productoPrincipal, queryWords, codigo.codigo_secundario);
+                
+                if (relevance > 0) {
+                    results.push({
+                        ...productoPrincipal,
+                        relevance: relevance,
+                        matchType: 'codigo_secundario',
+                        codigoSecundario: codigo.codigo_secundario
+                    });
+                    processedCodes.add(productoPrincipal.codigo);
+                }
+            }
+        }
+
+        // Ordenar por relevancia
+        results.sort((a, b) => b.relevance - a.relevance);
+        return results.slice(0, limit);
     }
 
     /**
