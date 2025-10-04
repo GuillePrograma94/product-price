@@ -178,44 +178,69 @@ class StorageManager {
     }
 
     /**
-     * Calcula la relevancia de un resultado
+     * Calcula la relevancia de un resultado (versión optimizada)
      */
     calculateRelevance(producto, queryWords, codigoSecundario = null) {
         let score = 0;
         const codigoNormalizado = this.normalizeText(producto.codigo);
         const descripcionNormalizada = this.normalizeText(producto.descripcion);
         
-        // Buscar coincidencias en código
+        // Verificar que TODAS las palabras estén presentes
+        let allWordsFound = true;
+        let wordsFoundInCode = 0;
+        let wordsFoundInDescription = 0;
+        
         for (const word of queryWords) {
-            if (codigoNormalizado.includes(word)) {
-                score += 10; // Alta puntuación para coincidencias en código
+            const foundInCode = codigoNormalizado.includes(word);
+            const foundInDescription = descripcionNormalizada.includes(word);
+            
+            if (foundInCode) wordsFoundInCode++;
+            if (foundInDescription) wordsFoundInDescription++;
+            
+            // Si una palabra no se encuentra en ningún lado, descartar el producto
+            if (!foundInCode && !foundInDescription) {
+                allWordsFound = false;
+                break;
             }
         }
         
-        // Buscar coincidencias en descripción
-        for (const word of queryWords) {
-            if (descripcionNormalizada.includes(word)) {
-                score += 5; // Puntuación media para coincidencias en descripción
-            }
+        // Solo calcular score si todas las palabras están presentes
+        if (!allWordsFound) {
+            return 0;
         }
+        
+        // Calcular puntuación basada en dónde se encontraron las palabras
+        const totalWords = queryWords.length;
+        
+        // Bonus por palabras encontradas en código (mayor peso)
+        score += (wordsFoundInCode / totalWords) * 20;
+        
+        // Bonus por palabras encontradas en descripción
+        score += (wordsFoundInDescription / totalWords) * 10;
         
         // Bonus por coincidencia exacta de código
         if (codigoNormalizado === queryWords.join('')) {
-            score += 20;
+            score += 30;
         }
         
         // Bonus por coincidencia exacta de descripción
         if (descripcionNormalizada === queryWords.join(' ')) {
-            score += 15;
+            score += 25;
         }
         
         // Bonus si coincide código secundario
         if (codigoSecundario) {
             const codigoSecNormalizado = this.normalizeText(codigoSecundario);
+            let wordsFoundInSecCode = 0;
+            
             for (const word of queryWords) {
                 if (codigoSecNormalizado.includes(word)) {
-                    score += 8; // Puntuación alta para códigos secundarios
+                    wordsFoundInSecCode++;
                 }
+            }
+            
+            if (wordsFoundInSecCode === totalWords) {
+                score += 15; // Solo si todas las palabras están en el código secundario
             }
         }
         
@@ -223,7 +248,7 @@ class StorageManager {
     }
 
     /**
-     * Busca productos con algoritmo inteligente
+     * Busca productos con algoritmo optimizado y preciso
      */
     async searchProducts(query, limit = 50) {
         try {
@@ -238,8 +263,15 @@ class StorageManager {
             const results = [];
             const processedCodes = new Set(); // Para evitar duplicados
 
-            // Buscar en productos principales
-            for (const producto of productos) {
+            // Crear índices para búsqueda más rápida
+            const productosIndex = productos.map(p => ({
+                ...p,
+                codigoNormalizado: this.normalizeText(p.codigo),
+                descripcionNormalizada: this.normalizeText(p.descripcion)
+            }));
+
+            // Buscar en productos principales (optimizado)
+            for (const producto of productosIndex) {
                 const relevance = this.calculateRelevance(producto, queryWords);
                 
                 if (relevance > 0) {
@@ -252,9 +284,9 @@ class StorageManager {
                 }
             }
 
-            // Buscar en códigos secundarios
+            // Buscar en códigos secundarios (optimizado)
             for (const codigo of codigos) {
-                const productoPrincipal = productos.find(p => p.codigo === codigo.codigo_principal);
+                const productoPrincipal = productosIndex.find(p => p.codigo === codigo.codigo_principal);
                 
                 if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
                     const relevance = this.calculateRelevance(productoPrincipal, queryWords, codigo.codigo_secundario);
@@ -278,7 +310,7 @@ class StorageManager {
             return results.slice(0, limit);
             
         } catch (error) {
-            console.error('❌ Error en búsqueda inteligente:', error);
+            console.error('❌ Error en búsqueda optimizada:', error);
             return [];
         }
     }
