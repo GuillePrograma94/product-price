@@ -73,7 +73,7 @@ class StorageManager {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['productos'], 'readwrite');
             const store = transaction.objectStore('productos');
-            
+
             let completed = 0;
             const total = products.length;
             
@@ -106,7 +106,7 @@ class StorageManager {
             const transaction = this.db.transaction(['productos'], 'readonly');
             const store = transaction.objectStore('productos');
             const request = store.getAll();
-            
+
             request.onsuccess = () => {
                 const allProducts = request.result || [];
                 
@@ -123,6 +123,155 @@ class StorageManager {
                 console.error('Error al buscar productos:', code);
                 reject(request.error);
             };
+        });
+    }
+
+    /**
+     * Normaliza texto para búsqueda (elimina acentos, espacios extra, etc.)
+     */
+    normalizeText(text) {
+        if (!text) return '';
+        return text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+            .replace(/\s+/g, ' ') // Normalizar espacios
+            .trim();
+    }
+
+    /**
+     * Busca productos por código (incluyendo códigos secundarios)
+     */
+    async searchProductsByCode(codeQuery) {
+        try {
+            if (!codeQuery || codeQuery.trim() === '') {
+                return [];
+            }
+
+            const results = new Set();
+            const processedCodes = new Set();
+            
+            // Normalizar código de búsqueda
+            const normalizedCode = this.normalizeText(codeQuery);
+            
+            // Buscar en códigos principales (SKU)
+            const productos = await this.searchInProductos(normalizedCode);
+            productos.forEach(producto => {
+                results.add(producto.codigo);
+                processedCodes.add(producto.codigo);
+            });
+            
+            // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
+            if (results.size < 10) {
+                const codigosSecundarios = await this.searchInCodigosSecundarios(normalizedCode);
+                for (const codigoSec of codigosSecundarios) {
+                    if (!processedCodes.has(codigoSec.codigo_principal)) {
+                        results.add(codigoSec.codigo_principal);
+                        processedCodes.add(codigoSec.codigo_principal);
+                    }
+                }
+            }
+            
+            // Obtener productos completos
+            const productosCompletos = await this.getProductsByCodes(Array.from(results));
+            return productosCompletos;
+            
+        } catch (error) {
+            console.error('❌ Error en búsqueda por código:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Busca en la tabla productos usando índices
+     */
+    async searchInProductos(codeQuery) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve([]);
+                return;
+            }
+
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const productos = request.result;
+                const matches = productos.filter(producto => 
+                    this.normalizeText(producto.codigo).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Busca en la tabla codigos_secundarios usando índices
+     */
+    async searchInCodigosSecundarios(codeQuery) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve([]);
+                return;
+            }
+
+            const transaction = this.db.transaction(['codigos_secundarios'], 'readonly');
+            const store = transaction.objectStore('codigos_secundarios');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const codigos = request.result;
+                const matches = codigos.filter(codigo => 
+                    this.normalizeText(codigo.codigo_secundario).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Obtiene productos específicos por sus códigos
+     */
+    async getProductsByCodes(codes) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve([]);
+                return;
+            }
+
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const productos = [];
+            let completed = 0;
+            
+            if (codes.length === 0) {
+                resolve([]);
+                return;
+            }
+            
+            codes.forEach(codigo => {
+                const request = store.get(codigo);
+                request.onsuccess = () => {
+                    if (request.result) {
+                        productos.push(request.result);
+                    }
+                    completed++;
+                    if (completed === codes.length) {
+                        resolve(productos);
+                    }
+                };
+                request.onerror = () => {
+                    completed++;
+                    if (completed === codes.length) {
+                        resolve(productos);
+                    }
+                };
+            });
         });
     }
 
@@ -229,7 +378,7 @@ class StorageManager {
                         dbSize: this.estimateDBSize()
                     });
                 };
-            } catch (error) {
+        } catch (error) {
                 console.log('⚠️ Error al acceder a la base de datos:', error);
                 resolve({
                     totalProducts: this._cachedProductCount || 0,
