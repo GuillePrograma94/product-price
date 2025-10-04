@@ -228,27 +228,63 @@ class UIManager {
     /**
      * Realiza una búsqueda
      */
+    /**
+     * Realiza búsqueda con campos separados
+     */
     async performSearch() {
-        const query = this.elements.searchInput.value.trim();
+        const codeQuery = this.elements.codeInput ? this.elements.codeInput.value.trim() : '';
+        const descriptionQuery = this.elements.descriptionInput ? this.elements.descriptionInput.value.trim() : '';
         
-        if (!query) {
-            this.showToast('Ingrese un término de búsqueda', 'warning');
+        // Si no hay campos separados, usar el campo único (compatibilidad)
+        if (!this.elements.codeInput && !this.elements.descriptionInput) {
+            const query = this.elements.searchInput.value.trim();
+            if (!query) {
+                this.showToast('Ingrese un término de búsqueda', 'warning');
+                return;
+            }
+            if (query.length < 2) {
+                this.showToast('Ingrese al menos 2 caracteres', 'warning');
+                return;
+            }
+            
+            try {
+                this.updateSyncStatus('syncing', 'Buscando...');
+                const results = await window.storageManager.searchProducts(query, '', 50);
+                this.searchResults = results;
+                this.displaySearchResults(results, query);
+                this.updateSyncStatus('connected', 'Conectado');
+            } catch (error) {
+                console.error('Error en búsqueda:', error);
+                this.showToast('Error al buscar productos', 'error');
+                this.updateSyncStatus('error', 'Error en búsqueda');
+            }
             return;
         }
-
-        if (query.length < 2) {
-            this.showToast('Ingrese al menos 2 caracteres', 'warning');
+        
+        // Validar que al menos uno de los campos tenga contenido
+        if (!codeQuery && !descriptionQuery) {
+            this.showToast('Ingrese código o descripción para buscar', 'warning');
+            return;
+        }
+        
+        if (codeQuery && codeQuery.length < 2) {
+            this.showToast('El código debe tener al menos 2 caracteres', 'warning');
+            return;
+        }
+        
+        if (descriptionQuery && descriptionQuery.length < 2) {
+            this.showToast('La descripción debe tener al menos 2 caracteres', 'warning');
             return;
         }
 
         try {
             this.updateSyncStatus('syncing', 'Buscando...');
             
-            // Realizar búsqueda local
-            const results = await window.storageManager.searchProducts(query, 50);
+            // Realizar búsqueda optimizada de dos pasos
+            const results = await window.storageManager.searchProducts(codeQuery, descriptionQuery, 50);
             
             this.searchResults = results;
-            this.displaySearchResults(results, query);
+            this.displaySearchResults(results, `${codeQuery} ${descriptionQuery}`.trim());
             
             this.updateSyncStatus('connected', 'Conectado');
             

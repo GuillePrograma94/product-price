@@ -42,16 +42,57 @@
             <!-- Search Section -->
             <section class="search-section">
                 <div class="search-container">
-                    <div class="search-input-group">
-                        <input 
-                            type="text" 
-                            id="searchInput" 
-                            class="search-input" 
-                            placeholder="Buscar por código o descripción..."
-                            autocomplete="off"
-                        >
-                        <button id="searchBtn" class="search-btn">🔍</button>
-                        <button id="scanBtn" class="scan-btn">📷</button>
+                    <div class="search-inputs">
+                        <!-- Campo de código con fondo verde pastel -->
+                        <div class="input-group code-group">
+                            <label for="codeInput" class="input-label">📋 Código (SKU/EAN)</label>
+                            <div class="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="codeInput" 
+                                    class="search-input code-input" 
+                                    placeholder="Ej: 013823608 o 1234567890123"
+                                    autocomplete="off"
+                                >
+                                <button id="codeSearchBtn" class="search-btn">🔍</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Campo de descripción con fondo azul pastel -->
+                        <div class="input-group description-group">
+                            <label for="descriptionInput" class="input-label">📝 Descripción</label>
+                            <div class="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="descriptionInput" 
+                                    class="search-input description-input" 
+                                    placeholder="Ej: monomando lavabo"
+                                    autocomplete="off"
+                                >
+                                <button id="descriptionSearchBtn" class="search-btn">🔍</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Campo único (compatibilidad) -->
+                        <div class="input-group legacy-group" style="display: none;">
+                            <label for="searchInput" class="input-label">🔍 Búsqueda General</label>
+                            <div class="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="searchInput" 
+                                    class="search-input" 
+                                    placeholder="Buscar por código o descripción..."
+                                    autocomplete="off"
+                                >
+                                <button id="searchBtn" class="search-btn">🔍</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Botón de búsqueda combinada -->
+                        <div class="search-actions">
+                            <button id="combinedSearchBtn" class="action-btn primary">🔍 Buscar</button>
+                            <button id="scanBtn" class="scan-btn">📷 Escanear</button>
+                        </div>
                     </div>
                     <div class="search-stats" id="searchStats">
                         <span id="productsCount">0 productos cargados</span>

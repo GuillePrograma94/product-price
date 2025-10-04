@@ -248,32 +248,226 @@ class StorageManager {
     }
 
     /**
-     * Busca productos con algoritmo ultra-optimizado
+     * Búsqueda ultra-optimizada de dos pasos
      */
-    async searchProducts(query, limit = 50) {
+    async searchProducts(codeQuery, descriptionQuery, limit = 50) {
         try {
-            if (!query || query.trim().length === 0) {
-                return [];
+            console.log('🔍 Iniciando búsqueda optimizada:', { codeQuery, descriptionQuery });
+            
+            // Paso 1: Filtro rápido por código (SKU + EAN)
+            let candidates = [];
+            if (codeQuery && codeQuery.trim()) {
+                candidates = await this.searchByCodeOptimized(codeQuery.trim());
+                console.log(`📊 Paso 1: Encontrados ${candidates.length} candidatos por código`);
+            } else {
+                // Si no hay código, obtener todos los productos
+                candidates = await this.getProducts();
+                console.log(`📊 Paso 1: Sin filtro de código, ${candidates.length} productos totales`);
             }
             
-            const queryWords = this.parseQuery(query);
-            const queryNormalized = queryWords.join('');
-            const results = [];
-            
-            // Si la búsqueda parece ser un código (solo números/letras), buscar directamente
-            if (this.isCodeSearch(queryWords)) {
-                console.log('🔍 Búsqueda de código detectada, usando algoritmo rápido');
-                return await this.searchByCode(queryNormalized, limit);
+            // Paso 2: Filtro por descripción (solo en candidatos del Paso 1)
+            let results = candidates;
+            if (descriptionQuery && descriptionQuery.trim() && candidates.length > 0) {
+                results = this.filterByDescription(candidates, descriptionQuery.trim());
+                console.log(`📊 Paso 2: Filtrados ${results.length} productos por descripción`);
             }
             
-            // Para búsquedas de texto, usar algoritmo completo pero optimizado
-            console.log('🔍 Búsqueda de texto detectada, usando algoritmo completo');
-            return await this.searchByText(queryWords, limit);
+            // Ordenar por relevancia y limitar
+            results = this.sortByRelevance(results, codeQuery, descriptionQuery);
+            results = results.slice(0, limit);
+            
+            console.log(`✅ Búsqueda completada: ${results.length} resultados finales`);
+            return results;
             
         } catch (error) {
             console.error('❌ Error en búsqueda optimizada:', error);
             return [];
         }
+    }
+
+    /**
+     * Paso 1: Búsqueda ultra-rápida por código usando índices de IndexedDB
+     */
+    async searchByCodeOptimized(codeQuery) {
+        try {
+            const results = new Set();
+            const processedCodes = new Set();
+            
+            // Normalizar código de búsqueda
+            const normalizedCode = this.normalizeText(codeQuery);
+            
+            // Buscar en códigos principales (SKU)
+            const productos = await this.searchInProductos(normalizedCode);
+            productos.forEach(producto => {
+                results.add(producto.codigo);
+                processedCodes.add(producto.codigo);
+            });
+            
+            // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
+            if (results.size < 10) {
+                const codigosSecundarios = await this.searchInCodigosSecundarios(normalizedCode);
+                for (const codigoSec of codigosSecundarios) {
+                    if (!processedCodes.has(codigoSec.codigo_principal)) {
+                        results.add(codigoSec.codigo_principal);
+                        processedCodes.add(codigoSec.codigo_principal);
+                    }
+                }
+            }
+            
+            // Obtener productos completos
+            const productosCompletos = await this.getProductsByCodes(Array.from(results));
+            return productosCompletos;
+            
+        } catch (error) {
+            console.error('❌ Error en búsqueda por código:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Busca en la tabla productos usando índices
+     */
+    async searchInProductos(codeQuery) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const productos = request.result;
+                const matches = productos.filter(producto => 
+                    this.normalizeText(producto.codigo).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Busca en la tabla codigos_secundarios usando índices
+     */
+    async searchInCodigosSecundarios(codeQuery) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['codigos_secundarios'], 'readonly');
+            const store = transaction.objectStore('codigos_secundarios');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const codigos = request.result;
+                const matches = codigos.filter(codigo => 
+                    this.normalizeText(codigo.codigo_secundario).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Obtiene productos específicos por sus códigos
+     */
+    async getProductsByCodes(codes) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const productos = [];
+            let completed = 0;
+            
+            if (codes.length === 0) {
+                resolve([]);
+                return;
+            }
+            
+            codes.forEach(codigo => {
+                const request = store.get(codigo);
+                request.onsuccess = () => {
+                    if (request.result) {
+                        productos.push(request.result);
+                    }
+                    completed++;
+                    if (completed === codes.length) {
+                        resolve(productos);
+                    }
+                };
+                request.onerror = () => {
+                    completed++;
+                    if (completed === codes.length) {
+                        resolve(productos);
+                    }
+                };
+            });
+        });
+    }
+
+    /**
+     * Paso 2: Filtro por descripción en productos candidatos
+     */
+    filterByDescription(candidates, descriptionQuery) {
+        const queryWords = this.parseQuery(descriptionQuery);
+        const results = [];
+        
+        for (const producto of candidates) {
+            const descripcionNormalizada = this.normalizeText(producto.descripcion);
+            
+            // Verificar que TODAS las palabras estén en la descripción
+            const allWordsFound = queryWords.every(word => 
+                descripcionNormalizada.includes(word)
+            );
+            
+            if (allWordsFound) {
+                    results.push({
+                        ...producto,
+                    relevance: this.calculateDescriptionRelevance(producto, queryWords),
+                    matchType: 'descripcion'
+                });
+            }
+        }
+        
+        return results;
+    }
+
+    /**
+     * Calcula relevancia basada en descripción
+     */
+    calculateDescriptionRelevance(producto, queryWords) {
+        const descripcionNormalizada = this.normalizeText(producto.descripcion);
+        let score = 0;
+        
+        // Bonus por coincidencia exacta
+        if (descripcionNormalizada === queryWords.join(' ')) {
+            score += 100;
+        } else {
+            // Bonus por palabras encontradas
+            queryWords.forEach(word => {
+                if (descripcionNormalizada.includes(word)) {
+                    score += 10;
+                }
+            });
+        }
+        
+        return score;
+    }
+
+    /**
+     * Ordena resultados por relevancia
+     */
+    sortByRelevance(results, codeQuery, descriptionQuery) {
+        return results.sort((a, b) => {
+            // Priorizar coincidencias exactas de código
+            if (codeQuery) {
+                const aCodeMatch = this.normalizeText(a.codigo).includes(this.normalizeText(codeQuery));
+                const bCodeMatch = this.normalizeText(b.codigo).includes(this.normalizeText(codeQuery));
+                
+                if (aCodeMatch && !bCodeMatch) return -1;
+                if (!aCodeMatch && bCodeMatch) return 1;
+            }
+            
+            // Luego por relevancia calculada
+            return (b.relevance || 0) - (a.relevance || 0);
+        });
     }
 
     /**
@@ -288,11 +482,27 @@ class StorageManager {
         }
         
         // Si son múltiples palabras pero todas son alfanuméricas cortas
-        return queryWords.every(word => /^[a-zA-Z0-9]{1,6}$/.test(word));
+        if (queryWords.every(word => /^[a-zA-Z0-9]{1,6}$/.test(word))) {
+            return true;
+        }
+        
+        // Si la primera palabra parece un código (alfanumérico de 3+ caracteres)
+        // y las demás son palabras cortas, tratar como código mixto
+        if (queryWords.length >= 2) {
+            const firstWord = queryWords[0];
+            const restWords = queryWords.slice(1);
+            
+            if (/^[a-zA-Z0-9]{3,}$/.test(firstWord) && 
+                restWords.every(word => word.length <= 10)) {
+                return true; // Código mixto: "0138 monomando lavabo"
+            }
+        }
+        
+        return false;
     }
 
     /**
-     * Búsqueda rápida por código
+     * Búsqueda rápida por código (incluye códigos mixtos)
      */
     async searchByCode(codeQuery, limit) {
         const productos = await this.getProducts();
@@ -300,15 +510,42 @@ class StorageManager {
         const results = [];
         const processedCodes = new Set();
 
+        // Para códigos mixtos como "0138 monomando lavabo", separar código y texto
+        const queryWords = this.parseQuery(codeQuery);
+        const codePart = queryWords[0]; // "0138"
+        const textParts = queryWords.slice(1); // ["monomando", "lavabo"]
+
         // Búsqueda directa en códigos principales (más rápida)
         for (const producto of productos) {
             const codigoNormalizado = this.normalizeText(producto.codigo);
+            const descripcionNormalizada = this.normalizeText(producto.descripcion);
             
-            if (codigoNormalizado.includes(codeQuery)) {
+            let relevance = 0;
+            let matchType = 'producto_principal';
+            
+            // Verificar coincidencia en código
+            if (codigoNormalizado.includes(codePart)) {
+                relevance = codigoNormalizado === codePart ? 100 : 50;
+                
+                // Si hay texto adicional, verificar que esté en la descripción
+                if (textParts.length > 0) {
+                    const allTextFound = textParts.every(textPart => 
+                        descripcionNormalizada.includes(textPart)
+                    );
+                    
+                    if (allTextFound) {
+                        relevance += 30; // Bonus por coincidencia de texto
+                    } else {
+                        relevance = 0; // Descartar si no coincide el texto
+                    }
+                }
+            }
+            
+            if (relevance > 0) {
                 results.push({
                     ...producto,
-                    relevance: codigoNormalizado === codeQuery ? 100 : 50,
-                    matchType: 'producto_principal'
+                    relevance: relevance,
+                    matchType: matchType
                 });
                 processedCodes.add(producto.codigo);
             }
@@ -319,17 +556,35 @@ class StorageManager {
             for (const codigo of codigos) {
                 const codigoSecNormalizado = this.normalizeText(codigo.codigo_secundario);
                 
-                if (codigoSecNormalizado.includes(codeQuery)) {
+                if (codigoSecNormalizado.includes(codePart)) {
                     const productoPrincipal = productos.find(p => p.codigo === codigo.codigo_principal);
                     
                     if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
-                        results.push({
-                            ...productoPrincipal,
-                            relevance: codigoSecNormalizado === codeQuery ? 80 : 40,
-                            matchType: 'codigo_secundario',
-                            codigoSecundario: codigo.codigo_secundario
-                        });
-                        processedCodes.add(productoPrincipal.codigo);
+                        let relevance = codigoSecNormalizado === codePart ? 80 : 40;
+                        
+                        // Si hay texto adicional, verificar que esté en la descripción
+                        if (textParts.length > 0) {
+                            const descripcionNormalizada = this.normalizeText(productoPrincipal.descripcion);
+                            const allTextFound = textParts.every(textPart => 
+                                descripcionNormalizada.includes(textPart)
+                            );
+                            
+                            if (allTextFound) {
+                                relevance += 25; // Bonus por coincidencia de texto
+                            } else {
+                                relevance = 0; // Descartar si no coincide el texto
+                            }
+                        }
+                        
+                        if (relevance > 0) {
+                            results.push({
+                                ...productoPrincipal,
+                                relevance: relevance,
+                                matchType: 'codigo_secundario',
+                                codigoSecundario: codigo.codigo_secundario
+                            });
+                            processedCodes.add(productoPrincipal.codigo);
+                        }
                     }
                 }
             }

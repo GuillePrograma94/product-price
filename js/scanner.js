@@ -144,9 +144,6 @@ class BarcodeScanner {
             // Asignar stream al video
             this.elements.scannerVideo.srcObject = this.stream;
             
-            // Verificar si tiene flash
-            this.checkFlashSupport();
-            
             console.log('✅ Cámara iniciada');
 
         } catch (error) {

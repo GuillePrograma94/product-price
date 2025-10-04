@@ -150,13 +150,70 @@ body {
     box-shadow: var(--shadow);
 }
 
-.search-input-group {
+.search-inputs {
     display: flex;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 1rem;
     margin-bottom: 1rem;
 }
 
-.search-input {
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.input-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* Campo de código - Fondo verde pastel */
+.code-group .code-input {
+    flex: 1;
+    padding: 1rem;
+    border: 2px solid #10b981;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    background: #ecfdf5; /* Verde pastel muy suave */
+    transition: all 0.2s ease;
+}
+
+.code-group .code-input:focus {
+    outline: none;
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    background: #f0fdf4; /* Verde pastel más intenso al enfocar */
+}
+
+/* Campo de descripción - Fondo azul pastel */
+.description-group .description-input {
+    flex: 1;
+    padding: 1rem;
+    border: 2px solid #3b82f6;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    background: #eff6ff; /* Azul pastel muy suave */
+    transition: all 0.2s ease;
+}
+
+.description-group .description-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: #f8fafc; /* Azul pastel más intenso al enfocar */
+}
+
+/* Campo único (compatibilidad) */
+.legacy-group .search-input {
     flex: 1;
     padding: 1rem;
     border: 2px solid var(--border-color);
@@ -166,7 +223,7 @@ body {
     transition: all 0.2s ease;
 }
 
-.search-input:focus {
+.legacy-group .search-input:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -185,6 +242,34 @@ body {
 }
 
 .search-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.search-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.search-actions .action-btn {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.search-actions .action-btn.primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.search-actions .action-btn.primary:hover {
     background: var(--primary-dark);
     transform: translateY(-1px);
 }
