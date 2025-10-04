@@ -18,7 +18,7 @@ class UIManager {
         
         // Control de scroll para header
         this.lastScrollY = 0;
-        this.scrollThreshold = 100;
+        this.scrollThreshold = 50;
     }
 
     /**
@@ -257,19 +257,18 @@ class UIManager {
         
         if (!header) return;
         
-        // Si estamos cerca del top, mostrar header completo
-        if (currentScrollY < 50) {
+        // Si estamos cerca del top (primeros 30px), mostrar header
+        if (currentScrollY < 30) {
             header.classList.remove('hidden', 'compact');
         }
-        // Si hemos hecho scroll hacia abajo, hacer header compacto
-        else if (currentScrollY > this.lastScrollY && currentScrollY > this.scrollThreshold) {
-            header.classList.remove('hidden');
-            header.classList.add('compact');
-        }
-        // Si hemos hecho scroll hacia arriba, ocultar header
-        else if (currentScrollY < this.lastScrollY && currentScrollY > this.scrollThreshold) {
-            header.classList.remove('compact');
+        // Si hemos hecho scroll hacia abajo, ocultar header completamente
+        else if (currentScrollY > this.lastScrollY && currentScrollY > 20) {
             header.classList.add('hidden');
+            header.classList.remove('compact');
+        }
+        // Si hemos hecho scroll hacia arriba significativo, mostrar header
+        else if (currentScrollY < this.lastScrollY && Math.abs(currentScrollY - this.lastScrollY) > 10) {
+            header.classList.remove('hidden', 'compact');
         }
         
         this.lastScrollY = currentScrollY;
