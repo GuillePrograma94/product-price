@@ -64,14 +64,19 @@ class MobileApp {
      */
     async initializeModules() {
         window.ui.updateProgress(0.1, 'Inicializando almacenamiento...');
+        console.log('🔧 Iniciando inicialización de módulos...');
         
         // Inicializar almacenamiento local
+        console.log('📦 Inicializando storage manager...');
         await window.storageManager.initialize();
+        console.log('✅ Storage manager inicializado');
         
         window.ui.updateProgress(0.2, 'Inicializando interfaz...');
+        console.log('🎨 Inicializando UI...');
         
         // Inicializar UI
         window.ui.initialize();
+        console.log('✅ UI inicializada');
         
         console.log('✅ Módulos base inicializados');
     }
@@ -81,17 +86,22 @@ class MobileApp {
      */
     async loadConfiguration() {
         window.ui.updateProgress(0.3, 'Cargando configuración...');
+        console.log('⚙️ Iniciando carga de configuración...');
         
         try {
             // Cargar configuración de Supabase desde el servidor
+            console.log('🔗 Cargando configuración de Supabase...');
             const configLoaded = await window.CONFIG.loadSupabaseConfig();
             
             if (!configLoaded) {
                 throw new Error('No se pudo cargar la configuración de Supabase desde el servidor');
             }
+            console.log('✅ Configuración de Supabase cargada');
             
             // Cargar configuración local guardada
+            console.log('💾 Cargando configuración local...');
             const localConfig = await window.storageManager.getAllConfig();
+            console.log('✅ Configuración local cargada');
             
             // Combinar configuraciones
             this.config = {
@@ -106,25 +116,32 @@ class MobileApp {
             });
             
             // Guardar configuración actualizada localmente
+            console.log('💾 Guardando configuración localmente...');
             await window.storageManager.saveConfig('supabaseUrl', this.config.supabaseUrl);
             await window.storageManager.saveConfig('supabaseKey', this.config.supabaseKey);
+            console.log('✅ Configuración guardada localmente');
             
             console.log('✅ Configuración cargada desde APK y almacenada localmente');
             
             // Inicializar cliente de Supabase
+            console.log('🔗 Inicializando cliente de Supabase...');
             await window.supabaseClient.initialize(this.config);
+            console.log('✅ Cliente de Supabase inicializado');
             
         } catch (error) {
             console.error('❌ Error al cargar configuración:', error);
             
             // Intentar usar configuración local como fallback
+            console.log('⚠️ Intentando usar configuración local como fallback...');
             const localConfig = await window.storageManager.getAllConfig();
             if (localConfig.supabaseUrl && localConfig.supabaseKey) {
                 console.log('⚠️ Usando configuración local como fallback');
                 this.config = localConfig;
                 
                 // Inicializar cliente de Supabase con configuración local
+                console.log('🔗 Inicializando cliente de Supabase con configuración local...');
                 await window.supabaseClient.initialize(this.config);
+                console.log('✅ Cliente de Supabase inicializado con configuración local');
             } else {
                 throw new Error('No hay configuración de Supabase disponible');
             }
@@ -136,30 +153,40 @@ class MobileApp {
      */
     async performInitialSync() {
         window.ui.updateProgress(0.4, 'Sincronizando productos...');
+        console.log('🔄 Iniciando sincronización inicial...');
         
         try {
             // Verificar si hay datos locales
-            const stats = window.storageManager.getStats();
+            console.log('📊 Verificando datos locales...');
+            const stats = await window.storageManager.getStats();
+            console.log(`📊 Datos locales encontrados: ${stats.totalProducts} productos`);
             
             if (stats.totalProducts === 0) {
                 // No hay datos locales, sincronizar desde Supabase
+                console.log('📥 No hay datos locales, sincronizando desde Supabase...');
                 await this.syncProductsFromSupabase();
+                console.log('✅ Sincronización desde Supabase completada');
             } else {
                 // Hay datos locales, verificar si necesitan actualización
+                console.log('🔍 Verificando si los datos locales necesitan actualización...');
                 const needsUpdate = await this.checkIfUpdateNeeded();
                 if (needsUpdate) {
+                    console.log('📥 Datos locales desactualizados, sincronizando...');
                     await this.syncProductsFromSupabase();
+                    console.log('✅ Sincronización de actualización completada');
                 } else {
                     console.log('✅ Datos locales actualizados');
                 }
             }
             
             // Actualizar estado
+            console.log('📝 Actualizando estado de la aplicación...');
             this.state.productsLoaded = true;
             this.state.lastSync = new Date().toISOString();
             
             // Actualizar estadísticas
-            const finalStats = window.storageManager.getStats();
+            console.log('📊 Actualizando estadísticas finales...');
+            const finalStats = await window.storageManager.getStats();
             this.state.totalProducts = finalStats.totalProducts;
             
             window.ui.updateProgress(1.0, 'Sincronización completada');
@@ -170,7 +197,8 @@ class MobileApp {
             console.error('❌ Error en sincronización:', error);
             
             // Intentar usar datos locales si están disponibles
-            const stats = window.storageManager.getStats();
+            console.log('⚠️ Intentando usar datos locales debido a error...');
+            const stats = await window.storageManager.getStats();
             if (stats.totalProducts > 0) {
                 console.log('⚠️ Usando datos locales debido a error de sincronización');
                 this.state.productsLoaded = true;
@@ -310,7 +338,7 @@ class MobileApp {
             
             // Actualizar estado
             this.state.lastSync = new Date().toISOString();
-            const stats = window.storageManager.getStats();
+            const stats = await window.storageManager.getStats();
             this.state.totalProducts = stats.totalProducts;
             
             window.ui.updateSearchStats();
