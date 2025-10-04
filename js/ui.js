@@ -19,6 +19,15 @@ class UIManager {
      * Inicializa la interfaz de usuario
      */
     initialize() {
+        // Verificar que estamos en en contexto válido
+        if (typeof document === 'undefined') {
+            console.error('❌ UIManager: document no está disponible');
+            return;
+        }
+        
+        // Verificar estado del DOM
+        console.log('📄 Estado del DOM:', document.readyState);
+        
         this.cacheElements();
         this.bindEvents();
         this.updateUI();
@@ -30,6 +39,10 @@ class UIManager {
      * Cachea referencias a elementos DOM
      */
     cacheElements() {
+        console.log('🔍 Cacheando elementos del DOM...');
+        console.log('📄 Document ready:', document.readyState);
+        console.log('📄 Document body:', document.body ? 'disponible' : 'no disponible');
+        
         this.elements = {
             // Loading
             loadingScreen: document.getElementById('loadingScreen'),
@@ -83,6 +96,30 @@ class UIManager {
             // Toast
             toastContainer: document.getElementById('toastContainer')
         };
+        
+        // Verificar elementos críticos inmediatamente después del cacheo
+        const criticalElements = ['loadingScreen', 'mainContent', 'loadingText', 'progressFill'];
+        criticalElements.forEach(id => {
+            const element = this.elements[id];
+            console.log(`${id}:`, element ? '✅ encontrado' : '❌ NO ENCONTRADO', element || '');
+        });
+        
+        const missingElements = criticalElements.filter(id => !this.elements[id]);
+        
+        if (missingElements.length > 0) {
+            console.error('❌ Elementos críticos no encontrados:', missingElements);
+            console.log('📄 Estado del DOM:', document.readyState);
+            console.log('📄 Elementos disponibles:', Object.keys(this.elements).filter(key => this.elements[key]));
+            
+            // Intentar buscar elementos directamente
+            console.log('🔍 Buscando elementos directamente...');
+            missingElements.forEach(id => {
+                const element = document.getElementById(id);
+                console.log(`document.getElementById('${id}'):`, element ? '✅ encontrado' : '❌ no encontrado', element || '');
+            });
+        } else {
+            console.log('✅ Todos los elementos críticos encontrados');
+        }
     }
 
     /**
@@ -279,7 +316,7 @@ class UIManager {
             <div class="product-option-header">
                 <span class="product-option-code">${product.codigo}</span>
                 <span class="product-option-price">${precioFinal.toFixed(2)} €</span>
-                        </div>
+                    </div>
             <div class="product-option-description">${product.descripcion || 'Sin descripción'}</div>
             <div class="product-option-details">
                 <span class="product-option-category">${product.categoria || 'Sin categoría'}</span>
@@ -288,7 +325,7 @@ class UIManager {
             <div class="product-option-actions">
                 <button class="select-product-btn" data-product-index="${index}">
                     Seleccionar este producto
-                </button>
+                        </button>
             </div>
         `;
 
@@ -401,8 +438,15 @@ class UIManager {
      * Muestra la pantalla de carga
      */
     showLoading(message = 'Cargando...') {
+        if (!this.elements.loadingScreen) {
+            console.error('❌ loadingScreen no encontrado');
+            return;
+        }
         this.elements.loadingScreen.style.display = 'flex';
-        this.elements.loadingText.textContent = message;
+        
+        if (this.elements.loadingText) {
+            this.elements.loadingText.textContent = message;
+        }
         this.isLoading = true;
     }
 
@@ -410,8 +454,15 @@ class UIManager {
      * Oculta la pantalla de carga
      */
     hideLoading() {
+        if (!this.elements.loadingScreen) {
+            console.error('❌ loadingScreen no encontrado');
+                return;
+            }
         this.elements.loadingScreen.style.display = 'none';
-        this.elements.mainContent.style.display = 'block';
+        
+        if (this.elements.mainContent) {
+            this.elements.mainContent.style.display = 'block';
+        }
         this.isLoading = false;
     }
 
@@ -427,7 +478,16 @@ class UIManager {
      * Actualiza el estado de sincronización
      */
     updateSyncStatus(status, message) {
+        if (!this.elements.statusText) {
+            console.error('❌ statusText no encontrado');
+            return;
+        }
         this.elements.statusText.textContent = message;
+        
+        if (!this.elements.statusIndicator) {
+            console.error('❌ statusIndicator no encontrado');
+            return;
+        }
         
         // Actualizar indicador visual
         this.elements.statusIndicator.className = 'status-indicator';
@@ -503,8 +563,11 @@ class UIManager {
     }
 }
 
-// Inicializar UI Manager cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
+// Inicializar UI Manager cuando la página esté completamente cargada
+window.addEventListener('load', () => {
+    console.log('🌐 Página completamente cargada, inicializando UIManager...');
+    console.log('📄 Estado del DOM:', document.readyState);
 window.ui = new UIManager();
+    window.ui.initialize();
     console.log('🎯 Labels Reader UI Manager creado');
 });

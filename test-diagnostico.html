@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Labels Reader</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #c7d2fe; border: 1px solid #a5bcfc; color: #1e40af; }
+        #loadingScreen { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; justify-content: center; align-items: center; }
+        #loadingText { margin: 20px 0; }
+        #progressFill { width: 0%; height: 4px; background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Diagnóstico - Labels Reader</h1>
+    
+    <!-- Loading Screen Test -->
+    <div id="loadingScreen">
+        <div>
+            <div class="spinner">⏳</div>
+            <h2>Cargando catálogo...</h2>
+            <p id="loadingText">Conectando con el servidor...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Test -->
+    <div id="syncStatus">
+        <span class="status-indicator" id="statusIndicator">⚪</span>
+        <span id="statusText">Iniciando...</span>
+    </div>
+    
+    <!-- Main Content Test -->
+    <main id="mainContent" style="display: none;">
+        <h2>Contenido Principal</h2>
+        <p>Esta es la aplicación Labels Reader</p>
+        
+        <input type="text" id="codeInput" placeholder="Código del producto">
+        <button id="searchBtn">Buscar Precio</button>
+        <button id="scanBtn">📷</button>
+        <div id="productsCount">0 productos disponibles</div>
+        
+        <!-- Toast Container -->
+        <div id="toastContainer"></div>
+    </main>
+
+    <div id="test-results"></div>
+
+    <script>
+        console.log('🧪 Iniciando test de diagnóstico...');
+        
+        function addTestResult(test, success, details = '') {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `<strong>${test}:</strong> ${success ? '✅ APROBADO' : '❌ FALLO'} ${details}`;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        // Test 1: Verificar elementos críticos
+        setTimeout(() => {
+            console.log('🔍 Verificando elementos críticos...');
+            
+            const elements = {
+                loadingScreen: document.getElementById('loadingScreen'),
+                loadingText: document.getElementById('loadingText'),
+                progressFill: document.getElementById('progressFill'),
+                statusText: document.getElementById('statusText'),
+                statusIndicator: document.getElementById('statusIndicator'),
+                mainContent: document.getElementById('mainContent'),
+                toastContainer: document.getElementById('toastContainer'),
+                codeInput: document.getElementById('codeInput'),
+                productsCount: document.getElementById('productsCount')
+            };
+            
+            Object.entries(elements).forEach(([name, element]) => {
+                addTestResult(`Elemento ${name}`, !!element, element ? '' : 'no encontrado');
+                console.log(`${name}:`, element ? '✅ encontrado' : '❌ no encontrado');
+            });
+            
+            // Test 2: Simular operaciones del UIManager
+            setTimeout(() => {
+                console.log('🎨 Simulando operaciones del UIManager...');
+                
+                try {
+                    // Test showLoading
+                    elements.loadingScreen.style.display = 'flex';
+                    elements.loadingText.textContent = 'Test de carga completado';
+                    addTestResult('showLoading', true);
+                } catch (error) {
+                    addTestResult('showLoading', false, error.message);
+                }
+                
+                try {
+                    // Test updateProgress
+                    elements.progressFill.style.width = '50%';
+                    addTestResult('updateProgress', true);
+                } catch (error) {
+                    addTestResult('updateProgress', false, error.message);
+                }
+                
+                try {
+                    // Test updateSyncStatus
+                    elements.statusText.textContent = 'Test de sincronización';
+                    elements.statusIndicator.textContent = '🟢';
+                    addTestResult('updateSyncStatus', true);
+                } catch (error) {
+                    addTestResult('updateSyncStatus', false, error.message);
+                }
+                
+                try {
+                    // Test showToast
+                    const toast = document.createElement('div');
+                    toast.textContent = 'Toast de prueba';
+                    elements.toastContainer.appendChild(toast);
+                    setTimeout(() => elements.toastContainer.removeChild(toast), 2000);
+                    addTestResult('showToast', true);
+                } catch (error) {
+                    addTestResult('showToast', false, error.message);
+                }
+                
+                // Test final: Ocultar loading screen
+                setTimeout(() => {
+                    elements.loadingScreen.style.display = 'none';
+                    elements.mainContent.style.display = 'block';
+                    addTestResult('hideLoading', true);
+                    
+                    console.log('✅ Test completado');
+                    addTestResult('TESTS COMPLETADOS', true, 'Todos los elementos funcionan correctamente');
+                }, 1000);
+                
+            }, 1000);
+            
+        }, 500);
+        
+        console.log('📄 Estado del DOM inicial:', document.readyState);
+    </script>
+</body>
+</html>

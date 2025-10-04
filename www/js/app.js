@@ -354,9 +354,34 @@ class MobileApp {
     }
 }
 
-// Inicializar aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', async () => {
+// Inicializar aplicación cuando la página esté completamente cargada
+window.addEventListener('load', async () => {
     try {
+        console.log('🌐 Página completamente cargada, iniciando Labels Reader...');
+        console.log('📄 Estado del DOM:', document.readyState);
+        
+        // Esperar a que el UIManager esté inicializado
+        if (!window.ui) {
+            console.log('⏳ Esperando inicialización del UIManager...');
+            await new Promise(resolve => {
+                const checkUI = () => {
+                    if (window.ui) {
+                        resolve();
+                    } else {
+                        setTimeout(checkUI, 10);
+                    }
+                };
+                checkUI();
+            });
+        }
+        
+        // Verificar que los elementos críticos estén disponibles
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (!loadingScreen) {
+            throw new Error('Elemento loadingScreen no encontrado en el DOM');
+        }
+        
+        console.log('🚀 Iniciando Labels Reader...');
         window.mobileApp = new MobileApp();
         await window.mobileApp.initialize();
         console.log('🎯 Labels Reader iniciado correctamente');
