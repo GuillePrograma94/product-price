@@ -162,7 +162,7 @@ body {
 .main-content {
     flex: 1;
     padding: 1rem;
-    padding-bottom: 6rem; /* Más espacio para bottom nav */
+    padding-bottom: 7rem; /* Espacio para bottom nav + version info */
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
@@ -958,10 +958,31 @@ body {
     color: var(--primary-color);
 }
 
+/* Version Info */
+.version-info {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    z-index: 99;
+    /* Posicionar debajo del bottom-nav */
+    margin-bottom: 0;
+}
+
+.version-info span {
+    opacity: 0.7;
+}
+
 /* Bottom Navigation */
 .bottom-nav {
     position: fixed;
-    bottom: 0;
+    bottom: 2rem; /* Espacio para version-info */
     left: 0;
     right: 0;
     background: var(--surface);
@@ -1101,7 +1122,7 @@ body {
 @media (max-width: 480px) {
     .main-content {
         padding: 0.75rem;
-        padding-bottom: 7rem; /* Aún más espacio en móviles pequeños */
+        padding-bottom: 8rem; /* Espacio para bottom nav + version info en móviles */
     }
     
     .search-container,
