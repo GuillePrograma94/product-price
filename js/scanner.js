@@ -264,18 +264,40 @@ class BarcodeScanner {
     }
 
     /**
-     * Busca el código detectado
+     * Busca el código detectado y añade automáticamente si es único
      */
-    searchDetectedCode() {
+    async searchDetectedCode() {
         const code = this.elements.detectedCode.textContent;
         if (code) {
             // Cerrar escáner
             this.closeScanner();
             
-            // Buscar en la aplicación principal
-            if (window.ui) {
-                window.ui.elements.searchInput.value = code;
-                window.ui.performSearch();
+            // Buscar productos con este código específico
+            try {
+                const results = await window.storageManager.searchProducts(code, '', 10);
+                
+                if (results.length === 1) {
+                    // Si hay exactamente un producto, añadirlo automáticamente
+                    const product = results[0];
+                    await window.ui.addProductToList(product.codigo);
+                    window.ui.showToast(`✅ ${product.descripcion} añadido automáticamente`, 'success');
+                } else if (results.length > 1) {
+                    // Si hay múltiples productos, mostrar resultados para que el usuario elija
+                    window.ui.elements.codeInput.value = code;
+                    window.ui.performSmartSearch();
+                    window.ui.showToast(`🔍 ${results.length} productos encontrados. Selecciona el correcto.`, 'info');
+                } else {
+                    // Si no se encuentra el producto
+                    window.ui.elements.codeInput.value = code;
+                    window.ui.showToast(`❌ No se encontró producto con código ${code}`, 'warning');
+                }
+            } catch (error) {
+                console.error('Error al buscar código detectado:', error);
+                // Fallback: usar búsqueda normal
+                if (window.ui) {
+                    window.ui.elements.codeInput.value = code;
+                    window.ui.performSmartSearch();
+                }
             }
         }
     }
