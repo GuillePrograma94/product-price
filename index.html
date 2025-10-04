@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Labels Productos - Móvil</title>
+    <title>Labels Reader - Consulta de Precios</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1f2937">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Labels Productos">
+    <meta name="apple-mobile-web-app-title" content="Labels Reader">
     <meta name="msapplication-TileColor" content="#1f2937">
     <meta name="msapplication-navbutton-color" content="#1f2937">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -20,6 +20,7 @@
         <!-- Header -->
         <header class="header" id="mainHeader">
             <div class="header-content">
+                <h1 class="app-title">Labels Reader</h1>
                 <div class="sync-status" id="syncStatus">
                     <span class="status-indicator" id="statusIndicator">⚪</span>
                     <span id="statusText">Iniciando...</span>
@@ -31,7 +32,7 @@
         <div id="loadingScreen" class="loading-screen">
             <div class="loading-content">
                 <div class="spinner"></div>
-                <h2>Descargando catálogo...</h2>
+                <h2>Cargando catálogo...</h2>
                 <p id="loadingText">Conectando con el servidor...</p>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
@@ -45,128 +46,121 @@
             <section class="search-section">
                 <div class="search-container">
                     <div class="search-inputs">
-                        <!-- Campo de código con fondo verde pastel -->
-                        <div class="input-group code-group">
-                            <label for="codeInput" class="input-label">📋 Código (SKU/EAN)</label>
+                        <!-- Campo de código principal -->
+                        <div class="input-group">
+                            <label for="codeInput" class="input-label">Código del Producto</label>
                             <div class="input-wrapper">
                                 <input 
                                     type="text" 
                                     id="codeInput" 
-                                    class="search-input code-input" 
-                                    placeholder="Ej: 013823608 o 1234567890123"
-                                    autocomplete="off"
-                                >
-                            </div>
-                        </div>
-                        
-                        <!-- Campo de descripción con fondo azul pastel -->
-                        <div class="input-group description-group">
-                            <label for="descriptionInput" class="input-label">📝 Descripción</label>
-                            <div class="input-wrapper">
-                                <input 
-                                    type="text" 
-                                    id="descriptionInput" 
-                                    class="search-input description-input" 
-                                    placeholder="Ej: monomando lavabo"
-                                    autocomplete="off"
-                                >
-                            </div>
-                        </div>
-                        
-                        <!-- Campo único (compatibilidad) -->
-                        <div class="input-group legacy-group" style="display: none;">
-                            <label for="searchInput" class="input-label">🔍 Búsqueda General</label>
-                            <div class="input-wrapper">
-                                <input 
-                                    type="text" 
-                                    id="searchInput" 
                                     class="search-input" 
-                                    placeholder="Buscar por código o descripción..."
+                                    placeholder="Introduce el código del producto..."
                                     autocomplete="off"
                                 >
+                                <button id="scanBtn" class="scan-btn">📷</button>
                             </div>
                         </div>
                         
-                        <!-- Botones de acción -->
-                        <div class="search-actions">
-                            <button id="smartSearchBtn" class="action-btn primary">🔍 Buscar</button>
-                            <button id="scanBtn" class="scan-btn">📷 Escanear</button>
-                        </div>
+                        <!-- Botón de búsqueda -->
+                        <button id="searchBtn" class="search-btn">Buscar Precio</button>
                     </div>
+                    
                     <div class="search-stats" id="searchStats">
-                        <span id="productsCount">0 productos cargados</span>
+                        <span id="productsCount">0 productos disponibles</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Search Results -->
-            <section class="results-section" id="resultsSection" style="display: none;">
-                <div class="results-header">
-                    <h3 id="resultsTitle">Resultados de búsqueda</h3>
-                    <button id="clearResults" class="clear-btn">✕ Limpiar</button>
-                </div>
-                <div class="results-list" id="resultsList"></div>
-            </section>
-
-            <!-- Current List -->
-            <section class="list-section">
-                <div class="list-header">
-                    <h3>📋 Mi Lista <span id="listCount">(0 productos)</span></h3>
-                    <div class="list-actions">
-                        <button id="clearListBtn" class="action-btn secondary">🗑️ Limpiar</button>
-                        <button id="generateCodeBtn" class="action-btn primary" disabled>📤 Generar Código</button>
+            <!-- Multiple Products Selection -->
+            <section class="multiple-products-section" id="multipleProductsSection" style="display: none;">
+                <div class="multiple-products-card">
+                    <div class="multiple-products-header">
+                        <h3>Múltiples productos encontrados</h3>
+                        <p class="multiple-products-subtitle">Se encontraron varios productos con el código <strong id="searchedCode"></strong></p>
+                        <button id="clearMultipleProducts" class="clear-btn">✕</button>
                     </div>
-                </div>
-                <div class="list-content" id="listContent">
-                    <div class="empty-list">
-                        <p>🔍 Busca productos y añádelos a tu lista</p>
+                    
+                    <div class="products-list" id="productsList">
+                        <!-- Los productos se insertarán aquí dinámicamente -->
                     </div>
                 </div>
             </section>
 
-            <!-- Version Info -->
-            <div class="version-info">
-                <span>Labels Productos Mobile v1.0</span>
-            </div>
-
-            <!-- Generated Code Modal -->
-            <div id="codeModal" class="modal" style="display: none;">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>✅ Lista Generada</h3>
-                        <button id="closeModal" class="close-btn">✕</button>
+            <!-- Product Information Card -->
+            <section class="product-section" id="productSection" style="display: none;">
+                <div class="product-card" id="productCard">
+                    <div class="product-header">
+                        <h3 class="product-code" id="productCode">-</h3>
+                        <button id="clearProduct" class="clear-btn">✕</button>
                     </div>
-                    <div class="modal-body">
-                        <div class="code-display">
-                            <p>Tu código de acceso es:</p>
-                            <div class="code-number" id="generatedCode">------</div>
-                            <div class="barcode-container">
-                                <svg id="barcode"></svg>
-                                <p class="barcode-info">También puedes escanear este código de barras</p>
+                    
+                    <div class="product-content">
+                        <!-- Imagen del producto -->
+                        <div class="product-image-container">
+                            <img id="productImage" class="product-image" src="" alt="Imagen del producto" style="display: none;">
+                            <div id="productImagePlaceholder" class="product-image-placeholder">
+                                <span class="placeholder-icon">📦</span>
+                                <span class="placeholder-text">Sin imagen</span>
                             </div>
-                            <p class="code-info">Introduce este código en la aplicación PC para descargar tu lista</p>
                         </div>
-                        <div class="code-actions">
-                            <button id="copyCodeBtn" class="action-btn primary">📋 Copiar Código</button>
-                            <button id="shareCodeBtn" class="action-btn secondary">📱 Compartir</button>
+                        
+                        <!-- Información principal -->
+                        <div class="product-main-info">
+                            <h4 class="product-description" id="productDescription">-</h4>
+                            
+                            <!-- Precio destacado -->
+                            <div class="price-highlight">
+                                <span class="price-label">Precio de Venta</span>
+                                <span class="price-value" id="productPrice">-</span>
+                                <span class="price-currency">€</span>
+                            </div>
                         </div>
-                        <div class="code-actions" style="margin-top: 0.75rem;">
-                            <button id="clearListAfterCodeBtn" class="action-btn secondary" style="width: 100%;">🗑️ Limpiar Lista</button>
+                        
+                        <!-- Detalles del producto -->
+                        <div class="product-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Código Secundario:</span>
+                                <span class="detail-value" id="productSecondaryCode">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Categoría:</span>
+                                <span class="detail-value" id="productCategory">-</span>
+                            </div>
                         </div>
-                        <div class="code-details">
-                            <p><strong>Lista:</strong> <span id="modalListName"></span></p>
-                            <p><strong>Productos:</strong> <span id="modalProductCount"></span></p>
-                            <p><strong>Válido hasta:</strong> <span id="modalExpiration"></span></p>
+                        
+                        <!-- Desglose de precios -->
+                        <div class="price-breakdown-section">
+                            <h5 class="breakdown-title">Desglose de Precio</h5>
+                            <div class="price-breakdown">
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">PVP:</span>
+                                    <span class="breakdown-value" id="productPVP">-</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">IVA (21%):</span>
+                                    <span class="breakdown-value" id="productIVA">-</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- No Results Message -->
+            <section class="no-results-section" id="noResultsSection" style="display: none;">
+                <div class="no-results-card">
+                    <div class="no-results-icon">🔍</div>
+                    <h3>Producto no encontrado</h3>
+                    <p>No se encontró ningún producto con el código introducido.</p>
+                    <p class="no-results-suggestion">Verifica el código e intenta de nuevo.</p>
+                </div>
+            </section>
 
             <!-- Scanner Modal -->
             <div id="scannerModal" class="modal scanner-modal" style="display: none;">
                 <div class="scanner-content">
                     <div class="scanner-header">
-                        <h3>📷 Escanear Código de Barras</h3>
+                        <h3>Escanear Código</h3>
                         <button id="closeScannerBtn" class="close-btn">✕</button>
                     </div>
                     <div class="scanner-body">
@@ -177,35 +171,27 @@
                                 <p class="scanner-instructions">Coloca el código de barras dentro del marco</p>
                             </div>
                         </div>
-                        <!-- Controles de scanner eliminados - no se usan -->
                         <div class="scanner-result" id="scannerResult" style="display: none;">
                             <p>Código detectado: <strong id="detectedCode"></strong></p>
-                            <button id="searchDetectedBtn" class="action-btn primary">🔍 Buscar Producto</button>
+                            <button id="searchDetectedBtn" class="action-btn primary">Buscar Precio</button>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <button class="nav-btn active" data-section="search">
-                <span class="nav-icon">🔍</span>
-                <span class="nav-label">Buscar</span>
-            </button>
-            <button class="nav-btn" data-section="list">
-                <span class="nav-icon">📋</span>
-                <span class="nav-label">Mi Lista</span>
-                <span class="nav-badge" id="navBadge" style="display: none;">0</span>
-            </button>
-        </nav>
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="version-info">
+                <span>Labels Reader v1.0</span>
+            </div>
+        </footer>
     </div>
 
     <!-- Toast Notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config-apk.js"></script>
     <script src="js/supabase.js"></script>
