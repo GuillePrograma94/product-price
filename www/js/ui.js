@@ -258,8 +258,16 @@ class UIManager {
         this.elements.productSection.style.display = 'block';
         this.elements.productSection.classList.add('fade-in');
         
+        // Scroll suave hacia la tarjeta del producto
+        setTimeout(() => {
+            this.elements.productSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 200); // Pequeño delay para que la animación fade-in sea visible
+        
         // Limpiar campo de búsqueda
-        this.elements.codeInput.value = '';
+        // this.elements.codeInput.value = '';
         
         console.log('✅ Producto mostrado:', product);
     }
@@ -321,6 +329,14 @@ class UIManager {
         // Mostrar sección de múltiples productos
         this.elements.multipleProductsSection.style.display = 'block';
         this.elements.multipleProductsSection.classList.add('fade-in');
+        
+        // Scroll suave hacia la sección de múltiples productos
+        setTimeout(() => {
+            this.elements.multipleProductsSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 200); // Pequeño delay para que la animación fade-in sea visible
         
         console.log(`✅ ${products.length} productos mostrados para selección`);
     }
