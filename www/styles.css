@@ -278,8 +278,6 @@ body {
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--shadow);
-    width: 60px; /* Ancho fijo para alineación */
-    height: 60px; /* Altura fija para alineación */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -297,7 +295,6 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--shadow);
     width: 100%;
-    height: 60px; /* Misma altura que el botón escanear */
     display: flex;
     align-items: center;
     justify-content: center;
