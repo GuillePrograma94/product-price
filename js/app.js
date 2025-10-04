@@ -231,6 +231,17 @@ class MobileApp {
             // Guardar productos en almacenamiento local
             await window.storageManager.saveProducts(products);
             
+            window.ui.updateProgress(0.85, 'Descargando códigos secundarios...');
+            
+            // Descargar códigos secundarios
+            const codigos = await window.supabaseClient.downloadSecondaryCodes((progress) => {
+                const progressValue = 0.85 + (progress.loaded / (progress.total || progress.loaded)) * 0.1;
+                window.ui.updateProgress(progressValue, `Descargando códigos: ${progress.loaded.toLocaleString()}`);
+            });
+            
+            // Guardar códigos secundarios
+            await window.storageManager.saveSecondaryCodes(codigos);
+            
             // Actualizar versión local con el hash remoto
             const versionCheck = await window.supabaseClient.verificarActualizacionNecesaria();
             if (versionCheck.versionRemota) {

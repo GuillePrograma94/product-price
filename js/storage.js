@@ -6,7 +6,7 @@
 class StorageManager {
     constructor() {
         this.dbName = 'LabelsReaderDB';
-        this.dbVersion = 1;
+        this.dbVersion = 2; // Incrementado para agregar codigos_secundarios
         this.db = null;
         
         // Configuración por defecto
@@ -47,6 +47,13 @@ class StorageManager {
                     productosStore.createIndex('pvp', 'pvp', { unique: false });
                     productosStore.createIndex('categoria', 'categoria', { unique: false });
                     productosStore.createIndex('codigo_secundario', 'codigo_secundario', { unique: false });
+                }
+
+                // Crear almacén de códigos secundarios
+                if (!db.objectStoreNames.contains('codigos_secundarios')) {
+                    const codigosStore = db.createObjectStore('codigos_secundarios', { keyPath: 'codigo_secundario' });
+                    codigosStore.createIndex('codigo_principal', 'codigo_principal', { unique: false });
+                    codigosStore.createIndex('descripcion', 'descripcion', { unique: false });
                 }
 
                 // Crear almacén de configuración
@@ -243,6 +250,108 @@ class StorageManager {
             lastSync: this.getLastSyncTime(),
             dbSize: this.estimateDBSize()
         };
+    }
+
+    /**
+     * Guarda configuración
+     */
+    async saveConfig(key, value) {
+        try {
+            if (!this.db) {
+                console.log('⚠️ Base de datos no inicializada, guardando en localStorage');
+                localStorage.setItem(`config_${key}`, JSON.stringify(value));
+                return;
+            }
+
+            const transaction = this.db.transaction(['config'], 'readwrite');
+            const store = transaction.objectStore('config');
+
+            const configItem = { key, value, timestamp: new Date().toISOString() };
+            await store.put(configItem);
+
+            await this.waitForTransaction(transaction);
+            console.log(`✅ Configuración guardada: ${key}`);
+        } catch (error) {
+            console.error('❌ Error al guardar configuración:', error);
+            // Fallback a localStorage
+            localStorage.setItem(`config_${key}`, JSON.stringify(value));
+        }
+    }
+
+    /**
+     * Obtiene configuración
+     */
+    async getConfig(key) {
+        try {
+            if (!this.db) {
+                console.log('⚠️ Base de datos no inicializada, usando localStorage');
+                const value = localStorage.getItem(`config_${key}`);
+                return value ? JSON.parse(value) : null;
+            }
+
+            const transaction = this.db.transaction(['config'], 'readonly');
+            const store = transaction.objectStore('config');
+            const request = store.get(key);
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    const result = request.result;
+                    resolve(result ? result.value : null);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error('❌ Error al obtener configuración:', error);
+            // Fallback a localStorage
+            const value = localStorage.getItem(`config_${key}`);
+            return value ? JSON.parse(value) : null;
+        }
+    }
+
+    /**
+     * Alias para compatibilidad
+     */
+    async setConfig(key, value) {
+        return await this.saveConfig(key, value);
+    }
+
+    /**
+     * Espera a que una transacción se complete
+     */
+    waitForTransaction(transaction) {
+        return new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+        });
+    }
+
+    /**
+     * Guarda códigos secundarios
+     */
+    async saveSecondaryCodes(codigos) {
+        try {
+            if (!this.db) {
+                console.log('⚠️ Base de datos no inicializada');
+                return;
+            }
+
+            const transaction = this.db.transaction(['codigos_secundarios'], 'readwrite');
+            const store = transaction.objectStore('codigos_secundarios');
+
+            // Limpiar códigos existentes
+            await store.clear();
+
+            // Insertar nuevos códigos
+            for (const codigo of codigos) {
+                await store.add(codigo);
+            }
+
+            await this.waitForTransaction(transaction);
+            console.log(`✅ Guardados ${codigos.length} códigos secundarios localmente`);
+        } catch (error) {
+            console.error('❌ Error al guardar códigos secundarios:', error);
+            throw error;
+        }
     }
 
     /**

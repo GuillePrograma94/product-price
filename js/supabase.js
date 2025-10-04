@@ -286,6 +286,56 @@ class SupabaseClient {
     }
 
     /**
+     * Descarga códigos secundarios desde Supabase
+     */
+    async downloadSecondaryCodes(onProgress = null) {
+        try {
+            if (!this.isConnected) {
+                throw new Error('No hay conexión con Supabase');
+            }
+
+            console.log('📦 Descargando códigos secundarios desde Supabase...');
+            const codigos = [];
+            const batchSize = 1000;
+            let offset = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await this.client
+                    .from('codigos_secundarios')
+                    .select('codigo_secundario, descripcion, codigo_principal')
+                    .range(offset, offset + batchSize - 1)
+                    .order('codigo_secundario');
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    codigos.push(...data);
+                    offset += batchSize;
+                    
+                    // Reportar progreso
+                    if (onProgress) {
+                        onProgress({
+                            loaded: codigos.length,
+                            total: codigos.length + (data.length === batchSize ? batchSize : 0)
+                        });
+                    }
+                    
+                    hasMore = data.length === batchSize;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            console.log(`✅ Descargados ${codigos.length} códigos secundarios`);
+            return codigos;
+        } catch (error) {
+            console.error('❌ Error al descargar códigos secundarios:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Obtiene estadísticas de productos
      */
     async getProductStats() {
