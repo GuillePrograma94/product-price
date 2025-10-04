@@ -73,8 +73,6 @@ class UIManager {
             productCard: document.getElementById('productCard'),
             productCode: document.getElementById('productCode'),
             productDescription: document.getElementById('productDescription'),
-            productSecondaryCode: document.getElementById('productSecondaryCode'),
-            productCategory: document.getElementById('productCategory'),
             productPrice: document.getElementById('productPrice'),
             productPVP: document.getElementById('productPVP'),
             productIVA: document.getElementById('productIVA'),
@@ -243,8 +241,6 @@ class UIManager {
         // Actualizar información básica
         this.elements.productCode.textContent = product.codigo || '-';
         this.elements.productDescription.textContent = product.descripcion || 'Sin descripción';
-        this.elements.productSecondaryCode.textContent = product.codigo_secundario || '-';
-        this.elements.productCategory.textContent = product.categoria || '-';
         
         // Calcular y mostrar precios
         const pvp = parseFloat(product.pvp) || 0;
