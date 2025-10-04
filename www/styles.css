@@ -42,11 +42,20 @@ body {
 .header {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     box-shadow: var(--shadow-lg);
     position: sticky;
     top: 0;
     z-index: 100;
+    transition: transform 0.3s ease, padding 0.3s ease;
+}
+
+.header.hidden {
+    transform: translateY(-100%);
+}
+
+.header.compact {
+    padding: 0.5rem 1rem;
 }
 
 .header-content {
@@ -58,8 +67,13 @@ body {
 }
 
 .header h1 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
+    transition: font-size 0.3s ease;
+}
+
+.header.compact h1 {
+    font-size: 1rem;
 }
 
 .sync-status {
@@ -253,23 +267,19 @@ body {
     margin-top: 0.5rem;
 }
 
-.search-actions .action-btn {
-    flex: 1;
-    padding: 1rem 1.5rem;
-    border-radius: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-}
-
-.search-actions .action-btn.primary {
+.search-btn {
+    padding: 1rem 1.25rem;
     background: var(--primary-color);
     color: white;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 60px;
 }
 
-.search-actions .action-btn.primary:hover {
+.search-btn:hover {
     background: var(--primary-dark);
     transform: translateY(-1px);
 }

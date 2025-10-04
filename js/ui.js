@@ -45,8 +45,10 @@ class UIManager {
             statusText: document.getElementById('statusText'),
             
             // Search
-            searchInput: document.getElementById('searchInput'),
-            searchBtn: document.getElementById('searchBtn'),
+            codeInput: document.getElementById('codeInput'),
+            descriptionInput: document.getElementById('descriptionInput'),
+            searchInput: document.getElementById('searchInput'), // Campo único (compatibilidad)
+            smartSearchBtn: document.getElementById('smartSearchBtn'),
             scanBtn: document.getElementById('scanBtn'),
             searchStats: document.getElementById('searchStats'),
             productsCount: document.getElementById('productsCount'),
@@ -88,22 +90,30 @@ class UIManager {
      */
     bindEvents() {
         // Search events
-        this.elements.searchBtn.addEventListener('click', () => this.performSearch());
+        this.elements.smartSearchBtn.addEventListener('click', () => this.performSmartSearch());
         this.elements.scanBtn.addEventListener('click', () => this.openScanner());
-        this.elements.searchInput.addEventListener('keypress', (e) => {
+        
+        // Eventos de teclado para búsqueda inteligente
+        this.elements.codeInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                this.performSearch();
+                this.performSmartSearch();
             }
         });
-        // Eliminar búsqueda automática - solo buscar al presionar botón
-        // this.elements.searchInput.addEventListener('input', (e) => {
-        //     const query = e.target.value.trim();
-        //     if (query.length >= 3) {
-        //         this.debounceSearch(query);
-        //     } else if (query.length === 0) {
-        //         this.clearSearchResults();
-        //     }
-        // });
+        
+        this.elements.descriptionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.performSmartSearch();
+            }
+        });
+        
+        // Compatibilidad con campo único
+        if (this.elements.searchInput) {
+            this.elements.searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.performSearch();
+                }
+            });
+        }
         
         // Results events
         this.elements.clearResults.addEventListener('click', () => this.clearSearchResults());
@@ -229,37 +239,11 @@ class UIManager {
      * Realiza una búsqueda
      */
     /**
-     * Realiza búsqueda con campos separados
+     * Búsqueda inteligente que detecta automáticamente el tipo de búsqueda
      */
-    async performSearch() {
+    async performSmartSearch() {
         const codeQuery = this.elements.codeInput ? this.elements.codeInput.value.trim() : '';
         const descriptionQuery = this.elements.descriptionInput ? this.elements.descriptionInput.value.trim() : '';
-        
-        // Si no hay campos separados, usar el campo único (compatibilidad)
-        if (!this.elements.codeInput && !this.elements.descriptionInput) {
-            const query = this.elements.searchInput.value.trim();
-            if (!query) {
-                this.showToast('Ingrese un término de búsqueda', 'warning');
-                return;
-            }
-            if (query.length < 2) {
-                this.showToast('Ingrese al menos 2 caracteres', 'warning');
-                return;
-            }
-            
-            try {
-                this.updateSyncStatus('syncing', 'Buscando...');
-                const results = await window.storageManager.searchProducts(query, '', 50);
-                this.searchResults = results;
-                this.displaySearchResults(results, query);
-                this.updateSyncStatus('connected', 'Conectado');
-            } catch (error) {
-                console.error('Error en búsqueda:', error);
-                this.showToast('Error al buscar productos', 'error');
-                this.updateSyncStatus('error', 'Error en búsqueda');
-            }
-            return;
-        }
         
         // Validar que al menos uno de los campos tenga contenido
         if (!codeQuery && !descriptionQuery) {
@@ -284,7 +268,52 @@ class UIManager {
             const results = await window.storageManager.searchProducts(codeQuery, descriptionQuery, 50);
             
             this.searchResults = results;
-            this.displaySearchResults(results, `${codeQuery} ${descriptionQuery}`.trim());
+            
+            // Crear descripción de búsqueda para mostrar
+            let searchDescription = '';
+            if (codeQuery && descriptionQuery) {
+                searchDescription = `"${codeQuery}" + "${descriptionQuery}"`;
+            } else if (codeQuery) {
+                searchDescription = `código "${codeQuery}"`;
+            } else {
+                searchDescription = `"${descriptionQuery}"`;
+            }
+            
+            this.displaySearchResults(results, searchDescription);
+            
+            this.updateSyncStatus('connected', 'Conectado');
+            
+        } catch (error) {
+            console.error('Error en búsqueda inteligente:', error);
+            this.showToast('Error al buscar productos', 'error');
+            this.updateSyncStatus('error', 'Error en búsqueda');
+        }
+    }
+
+    /**
+     * Búsqueda con campo único (compatibilidad)
+     */
+    async performSearch() {
+        const query = this.elements.searchInput.value.trim();
+        
+        if (!query) {
+            this.showToast('Ingrese un término de búsqueda', 'warning');
+            return;
+        }
+        
+        if (query.length < 2) {
+            this.showToast('Ingrese al menos 2 caracteres', 'warning');
+            return;
+        }
+        
+        try {
+            this.updateSyncStatus('syncing', 'Buscando...');
+            
+            // Usar búsqueda optimizada pasando el query como código
+            const results = await window.storageManager.searchProducts(query, '', 50);
+            
+            this.searchResults = results;
+            this.displaySearchResults(results, query);
             
             this.updateSyncStatus('connected', 'Conectado');
             
@@ -293,16 +322,6 @@ class UIManager {
             this.showToast('Error al buscar productos', 'error');
             this.updateSyncStatus('error', 'Error en búsqueda');
         }
-    }
-
-    /**
-     * Búsqueda con debounce
-     */
-    debounceSearch(query) {
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => {
-            this.performSearchSilent(query);
-        }, 300);
     }
 
     /**
