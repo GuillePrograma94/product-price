@@ -418,8 +418,8 @@ class StorageManager {
             );
             
             if (allWordsFound) {
-                    results.push({
-                        ...producto,
+                results.push({
+                    ...producto,
                     relevance: this.calculateDescriptionRelevance(producto, queryWords),
                     matchType: 'descripcion'
                 });

@@ -14,6 +14,18 @@ Aplicación web móvil para crear listas de productos y generar códigos de acce
 
 ## 🛠️ Instalación y Configuración
 
+### 📁 Estructura del Proyecto
+
+- **Archivos fuente**: En la raíz del directorio (para desarrollo)
+- **Carpeta `www/`**: Generada automáticamente (para APKs)
+- **Scripts de sincronización**: `sync_to_www.bat` (Windows) / `sync_to_www.sh` (Linux/Mac)
+
+### 🔄 Flujo de Trabajo
+
+1. **Desarrollo**: Edita archivos en la raíz (`index.html`, `styles.css`, `js/`)
+2. **Sincronización**: Ejecuta `sync_to_www.bat` para actualizar la carpeta `www/`
+3. **APK**: Usa la carpeta `www/` para generar APKs con Capacitor
+
 ### 1. Configurar Supabase
 
 Antes de usar la aplicación, necesitas configurar tu proyecto Supabase:

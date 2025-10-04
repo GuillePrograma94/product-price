@@ -1,0 +1,13 @@
+# Archivos de firma - NO SUBIR A CONTROL DE VERSIONES
+labels-productos-release.keystore
+keystore.properties
+signing-config.gradle
+
+# Build outputs
+build/
+*.apk
+*.aab
+
+# Archivos temporales
+*.tmp
+*.log

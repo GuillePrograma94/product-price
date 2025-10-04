@@ -1,10 +1,13 @@
-# Archivos de configuración sensibles
-.env
-*.env
-env-example.txt
+# Carpeta www generada automáticamente
+www/
 
-# Archivos de Android (no necesarios para PWA)
-android/
+# Archivos de build de Capacitor
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# Node modules
 node_modules/
 
 # Archivos temporales
@@ -13,14 +16,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Archivos de IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Archivos de build
-dist/
-build/
-*.apk
-*.aab
+# Archivos de configuración local
+.env
+.env.local

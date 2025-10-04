@@ -15,10 +15,6 @@ class UIManager {
         
         // Configuración de toast
         this.toastTimeout = null;
-        
-        // Control de scroll para header
-        this.lastScrollY = 0;
-        this.scrollThreshold = 50;
     }
 
     /**
@@ -42,9 +38,6 @@ class UIManager {
             mainContent: document.getElementById('mainContent'),
             loadingText: document.getElementById('loadingText'),
             progressFill: document.getElementById('progressFill'),
-            
-            // Header
-            mainHeader: document.getElementById('mainHeader'),
             
             // Status
             syncStatus: document.getElementById('syncStatus'),
@@ -159,9 +152,6 @@ class UIManager {
             }
             this.lastTouchEnd = now;
         });
-        
-        // Control de scroll para header
-        window.addEventListener('scroll', () => this.handleScroll());
     }
 
     /**
@@ -249,32 +239,6 @@ class UIManager {
      * Realiza una búsqueda
      */
     /**
-     * Maneja el scroll para ocultar/mostrar el header
-     */
-    handleScroll() {
-        const currentScrollY = window.scrollY;
-        const header = this.elements.mainHeader;
-        
-        if (!header) return;
-        
-        // Si estamos cerca del top (primeros 30px), mostrar header
-        if (currentScrollY < 30) {
-            header.classList.remove('hidden', 'compact');
-        }
-        // Si hemos hecho scroll hacia abajo, ocultar header completamente
-        else if (currentScrollY > this.lastScrollY && currentScrollY > 20) {
-            header.classList.add('hidden');
-            header.classList.remove('compact');
-        }
-        // Si hemos hecho scroll hacia arriba significativo, mostrar header
-        else if (currentScrollY < this.lastScrollY && Math.abs(currentScrollY - this.lastScrollY) > 10) {
-            header.classList.remove('hidden', 'compact');
-        }
-        
-        this.lastScrollY = currentScrollY;
-    }
-
-    /**
      * Búsqueda inteligente que detecta automáticamente el tipo de búsqueda
      */
     async performSmartSearch() {
@@ -358,16 +322,6 @@ class UIManager {
             this.showToast('Error al buscar productos', 'error');
             this.updateSyncStatus('error', 'Error en búsqueda');
         }
-    }
-
-    /**
-     * Búsqueda con debounce
-     */
-    debounceSearch(query) {
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => {
-            this.performSearchSilent(query);
-        }, 300);
     }
 
     /**
@@ -643,10 +597,7 @@ class UIManager {
      */
     clearSearchResults() {
         this.elements.resultsSection.style.display = 'none';
-        // Limpiar ambos campos de búsqueda
-        if (this.elements.codeInput) this.elements.codeInput.value = '';
-        if (this.elements.descriptionInput) this.elements.descriptionInput.value = '';
-        if (this.elements.searchInput) this.elements.searchInput.value = '';
+        this.elements.searchInput.value = '';
         this.searchResults = [];
     }
 
@@ -870,9 +821,9 @@ class UIManager {
         // Manejar navegación entre secciones
         if (section === 'search') {
             // Scroll a la sección de búsqueda
-            this.elements.codeInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            // Enfocar el campo de código
-            this.elements.codeInput.focus();
+            this.elements.searchInput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Enfocar el campo de búsqueda
+            this.elements.searchInput.focus();
         } else if (section === 'list') {
             // Scroll a la sección de lista
             this.elements.listContent.scrollIntoView({ behavior: 'smooth', block: 'start' });

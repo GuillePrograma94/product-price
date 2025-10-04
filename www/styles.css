@@ -271,19 +271,23 @@ body {
     margin-top: 0.5rem;
 }
 
-.search-btn {
-    padding: 1rem 1.25rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
+.search-actions .action-btn {
+    flex: 1;
+    padding: 1rem 1.5rem;
     border-radius: 0.75rem;
-    font-size: 1.25rem;
+    font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 60px;
+    border: none;
 }
 
-.search-btn:hover {
+.search-actions .action-btn.primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.search-actions .action-btn.primary:hover {
     background: var(--primary-dark);
     transform: translateY(-1px);
 }
