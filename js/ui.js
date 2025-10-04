@@ -283,7 +283,7 @@ class UIManager {
     }
 
     /**
-     * Muestra los resultados de búsqueda
+     * Muestra los resultados de búsqueda (optimizado)
      */
     displaySearchResults(results, query) {
         if (results.length === 0) {
@@ -298,22 +298,28 @@ class UIManager {
         // Limpiar resultados anteriores
         this.elements.resultsList.innerHTML = '';
 
-        // Crear elementos de resultado
+        // Mostrar resultados SIN imágenes primero (más rápido)
         results.forEach((product, index) => {
-            const productCard = this.createProductCard(product, index);
+            const productCard = this.createProductCardWithoutImage(product, index);
             this.elements.resultsList.appendChild(productCard);
         });
 
         // Scroll a resultados
         this.elements.resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+        // Cargar imágenes después de mostrar los resultados (lazy loading)
+        setTimeout(() => {
+            this.loadImagesLazily();
+        }, 100);
     }
 
     /**
-     * Crea una tarjeta de producto
+     * Crea una tarjeta de producto SIN imagen (más rápido)
      */
-    createProductCard(product, index) {
+    createProductCardWithoutImage(product, index) {
         const card = document.createElement('div');
         card.className = 'product-card';
+        card.dataset.productIndex = index;
         
         // Calcular precio con IVA (21%)
         const precioConIva = product.pvp * 1.21;
@@ -324,20 +330,10 @@ class UIManager {
             matchInfo = `<small style="color: var(--text-secondary);">Código secundario: ${product.codigoSecundario}</small>`;
         }
 
-        // URL de la imagen del producto
-        const imageUrl = `https://www.saneamiento-martinez.com/imagenes/articulos/${product.codigo}_1.JPG`;
-
         card.innerHTML = `
             <div class="product-card-content">
                 <div class="product-image-container">
-                    <img 
-                        src="${imageUrl}" 
-                        alt="Imagen de ${product.descripcion}"
-                        class="product-image"
-                        loading="lazy"
-                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    >
-                    <div class="product-image-placeholder" style="display: none;">
+                    <div class="product-image-placeholder">
                         <span class="placeholder-icon">📦</span>
                     </div>
                 </div>
@@ -358,6 +354,42 @@ class UIManager {
         `;
 
         return card;
+    }
+
+    /**
+     * Carga imágenes de forma diferida
+     */
+    loadImagesLazily() {
+        const productCards = this.elements.resultsList.querySelectorAll('.product-card');
+        
+        productCards.forEach((card, index) => {
+            const productIndex = parseInt(card.dataset.productIndex);
+            const product = this.searchResults[productIndex];
+            
+            if (product) {
+                const imageContainer = card.querySelector('.product-image-container');
+                const placeholder = card.querySelector('.product-image-placeholder');
+                
+                // Crear imagen
+                const img = document.createElement('img');
+                img.src = `https://www.saneamiento-martinez.com/imagenes/articulos/${product.codigo}_1.JPG`;
+                img.alt = `Imagen de ${product.descripcion}`;
+                img.className = 'product-image';
+                img.style.display = 'none';
+                
+                img.onload = () => {
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                };
+                
+                img.onerror = () => {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                };
+                
+                imageContainer.appendChild(img);
+            }
+        });
     }
 
     /**
