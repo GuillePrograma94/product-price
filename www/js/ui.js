@@ -152,6 +152,75 @@ class UIManager {
             }
             this.lastTouchEnd = now;
         });
+        
+        // Control de scroll para header
+        window.addEventListener('scroll', () => this.handleScroll());
+        
+        // Prevenir comportamientos del navegador móvil
+        this.preventMobileBrowserBehaviors();
+    }
+
+    /**
+     * Previene comportamientos no deseados del navegador móvil
+     */
+    preventMobileBrowserBehaviors() {
+        // Prevenir pull-to-refresh
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevenir zoom con gestos
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        });
+
+        // Prevenir scroll bounce en iOS
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevenir que aparezcan controles del navegador al hacer scroll
+        let lastScrollY = window.scrollY;
+        window.addEventListener('scroll', () => {
+            const currentScrollY = window.scrollY;
+            
+            // Si el scroll es hacia arriba desde el top, prevenir
+            if (currentScrollY <= 0 && lastScrollY <= 0) {
+                window.scrollTo(0, 1);
+            }
+            
+            lastScrollY = currentScrollY;
+        });
+    }
+
+    /**
+     * Maneja el scroll para ocultar/mostrar el header
+     */
+    handleScroll() {
+        const currentScrollY = window.scrollY;
+        const header = this.elements.mainHeader;
+        
+        if (!header) return;
+        
+        // Si estamos cerca del top (primeros 30px), mostrar header
+        if (currentScrollY < 30) {
+            header.classList.remove('hidden', 'compact');
+        }
+        // Si hemos hecho scroll hacia abajo, ocultar header completamente
+        else if (currentScrollY > this.lastScrollY && currentScrollY > 20) {
+            header.classList.add('hidden');
+            header.classList.remove('compact');
+        }
+        // Si hemos hecho scroll hacia arriba significativo, mostrar header
+        else if (currentScrollY < this.lastScrollY && Math.abs(currentScrollY - this.lastScrollY) > 10) {
+            header.classList.remove('hidden', 'compact');
+        }
+        
+        this.lastScrollY = currentScrollY;
     }
 
     /**

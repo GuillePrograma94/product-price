@@ -29,13 +29,25 @@ body {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevenir controles del navegador móvil */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 /* Layout principal */
 #app {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Prevenir bounce scroll en iOS */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
 }
 
 /* Header */
@@ -150,7 +162,7 @@ body {
 .main-content {
     flex: 1;
     padding: 1rem;
-    padding-bottom: 5rem; /* Espacio para bottom nav */
+    padding-bottom: 6rem; /* Más espacio para bottom nav */
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
@@ -1089,6 +1101,7 @@ body {
 @media (max-width: 480px) {
     .main-content {
         padding: 0.75rem;
+        padding-bottom: 7rem; /* Aún más espacio en móviles pequeños */
     }
     
     .search-container,
