@@ -323,4 +323,4 @@ class BarcodeScanner {
 }
 
 // Instancia global del escáner
-window.barcodeScanner = new BarcodeScanner();
+window.scanner = new BarcodeScanner();
