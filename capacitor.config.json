@@ -1,0 +1,18 @@
+{
+  "appId": "com.labelsproductos.mobile",
+  "appName": "Labels Productos",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "Camera": {
+      "permissions": ["camera"]
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#1f2937",
+      "showSpinner": false
+    }
+  }
+}

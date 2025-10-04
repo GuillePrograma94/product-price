@@ -1,0 +1,29 @@
+# Configuración para servir la API de configuración
+
+# Habilitar reescritura de URLs
+RewriteEngine On
+
+# Redirigir /api/config a config.php
+RewriteRule ^config$ config.php [L]
+
+# Headers CORS para todas las respuestas de la API
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+# Manejar preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Configuración de seguridad
+# Denegar acceso directo a archivos .env
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Denegar acceso a archivos de configuración
+<Files "*.conf">
+    Order allow,deny
+    Deny from all
+</Files>

@@ -1,0 +1,18 @@
+{
+  "name": "mobile_web_app",
+  "version": "1.0.0",
+  "description": "Aplicación web móvil para crear listas de productos y generar códigos de acceso que pueden ser utilizados en la aplicación de escritorio.",
+  "main": "config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  }
+}

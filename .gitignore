@@ -1,0 +1,26 @@
+# Archivos de configuración sensibles
+.env
+*.env
+env-example.txt
+
+# Archivos de Android (no necesarios para PWA)
+android/
+node_modules/
+
+# Archivos temporales
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de build
+dist/
+build/
+*.apk
+*.aab
