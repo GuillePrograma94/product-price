@@ -546,7 +546,7 @@ body {
 .product-code {
     font-family: 'Courier New', monospace;
     font-weight: 600;
-    color: var(--primary-color);
+    color: white;
     font-size: 0.875rem;
 }
 
@@ -1548,6 +1548,7 @@ body {
     font-weight: 700;
     margin: 0;
     letter-spacing: 0.5px;
+    color: white;
 }
 
 .clear-btn {

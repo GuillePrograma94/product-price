@@ -62,6 +62,17 @@ class BarcodeScanner {
             detectedCode: document.getElementById('detectedCode'),
             searchDetectedBtn: document.getElementById('searchDetectedBtn')
         };
+        
+        // Validar que todos los elementos estén disponibles
+        const missingElements = Object.entries(this.elements)
+            .filter(([key, element]) => !element)
+            .map(([key]) => key);
+            
+        if (missingElements.length > 0) {
+            console.error('❌ Elementos del escáner no encontrados:', missingElements);
+        } else {
+            console.log('✅ Todos los elementos del escáner encontrados');
+        }
     }
 
     /**
@@ -176,26 +187,101 @@ class BarcodeScanner {
     /**
      * Inicia el escaneo de códigos
      */
-    startScanning() {
+    async startScanning() {
         if (!this.codeReader || this.isScanning) return;
 
-        this.isScanning = true;
-        
-        // Usar ZXing para detectar códigos
-        this.codeReader.decodeFromVideoDevice(
-            undefined, // deviceId (undefined = usar el stream actual)
-            this.elements.scannerVideo,
-            (result, error) => {
-                if (result) {
-                    // Código detectado
-                    this.onCodeDetected(result.text);
+        try {
+            console.log('📷 Iniciando escaneo...');
+            this.isScanning = true;
+            
+            // Primero obtener acceso a la cámara
+            await this.getCameraAccess();
+            
+            // Luego iniciar el escaneo con ZXing
+            this.codeReader.decodeFromVideoDevice(
+                undefined, // deviceId (undefined = usar el stream actual)
+                this.elements.scannerVideo,
+                (result, error) => {
+                    if (result) {
+                        // Código detectado
+                        this.onCodeDetected(result.text);
+                    }
+                    
+                    if (error && error.name !== 'NotFoundException') {
+                        console.warn('Error de escaneo:', error);
+                    }
                 }
-                
-                if (error && error.name !== 'NotFoundException') {
-                    console.warn('Error de escaneo:', error);
+            );
+            
+            console.log('✅ Escaneo iniciado correctamente');
+        } catch (error) {
+            console.error('❌ Error al iniciar escaneo:', error);
+            this.isScanning = false;
+            this.showCameraError();
+        }
+    }
+
+    /**
+     * Obtiene acceso a la cámara
+     */
+    async getCameraAccess() {
+        try {
+            console.log('📷 Solicitando acceso a la cámara...');
+            
+            const constraints = {
+                video: {
+                    facingMode: this.currentCamera,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
                 }
-            }
-        );
+            };
+
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.elements.scannerVideo.srcObject = this.stream;
+            
+            // Esperar a que el video esté listo
+            await new Promise((resolve) => {
+                this.elements.scannerVideo.onloadedmetadata = () => {
+                    this.elements.scannerVideo.play();
+                    resolve();
+                };
+            });
+            
+            console.log('✅ Acceso a cámara obtenido');
+        } catch (error) {
+            console.error('❌ Error al acceder a la cámara:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Muestra error de cámara
+     */
+    showCameraError() {
+        if (this.elements.scannerResult) {
+            this.elements.scannerResult.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+                    <h3>❌ Error de Cámara</h3>
+                    <p>No se pudo acceder a la cámara. Verifica los permisos.</p>
+                    <button onclick="window.scanner.retryCamera()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-color); color: white; border: none; border-radius: 0.5rem; cursor: pointer;">
+                        Reintentar
+                    </button>
+                </div>
+            `;
+            this.elements.scannerResult.style.display = 'block';
+        }
+    }
+
+    /**
+     * Reintenta el acceso a la cámara
+     */
+    async retryCamera() {
+        try {
+            this.elements.scannerResult.style.display = 'none';
+            await this.startScanning();
+        } catch (error) {
+            console.error('❌ Error al reintentar cámara:', error);
+        }
     }
 
     /**
@@ -206,6 +292,19 @@ class BarcodeScanner {
             this.codeReader.reset();
             this.isScanning = false;
         }
+        
+        // Detener el stream de la cámara
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        
+        // Limpiar el video
+        if (this.elements.scannerVideo) {
+            this.elements.scannerVideo.srcObject = null;
+        }
+        
+        console.log('📷 Escaneo detenido');
     }
 
     /**

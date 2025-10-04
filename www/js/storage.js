@@ -140,7 +140,7 @@ class StorageManager {
     }
 
     /**
-     * Busca productos por código (incluyendo códigos secundarios)
+     * Búsqueda ultra-optimizada por código usando índices de IndexedDB
      */
     async searchProductsByCode(codeQuery) {
         try {
@@ -148,32 +148,38 @@ class StorageManager {
                 return [];
             }
 
+            console.log('🔍 Iniciando búsqueda optimizada por código:', codeQuery);
+            
             const results = new Set();
             const processedCodes = new Set();
             
             // Normalizar código de búsqueda
             const normalizedCode = this.normalizeText(codeQuery);
             
-            // Buscar en códigos principales (SKU)
-            const productos = await this.searchInProductos(normalizedCode);
+            // Buscar en códigos principales (SKU) usando índices
+            const productos = await this.searchInProductosOptimized(normalizedCode);
             productos.forEach(producto => {
                 results.add(producto.codigo);
                 processedCodes.add(producto.codigo);
             });
             
+            console.log(`📊 Encontrados ${results.size} productos por código principal`);
+            
             // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
             if (results.size < 10) {
-                const codigosSecundarios = await this.searchInCodigosSecundarios(normalizedCode);
+                const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
                 for (const codigoSec of codigosSecundarios) {
                     if (!processedCodes.has(codigoSec.codigo_principal)) {
                         results.add(codigoSec.codigo_principal);
                         processedCodes.add(codigoSec.codigo_principal);
                     }
                 }
+                console.log(`📊 Total después de códigos secundarios: ${results.size} productos`);
             }
             
             // Obtener productos completos
             const productosCompletos = await this.getProductsByCodes(Array.from(results));
+            console.log(`✅ Búsqueda completada: ${productosCompletos.length} resultados finales`);
             return productosCompletos;
             
         } catch (error) {
@@ -183,7 +189,55 @@ class StorageManager {
     }
 
     /**
-     * Busca en la tabla productos usando índices
+     * Busca en la tabla productos usando índices optimizados
+     */
+    async searchInProductosOptimized(codeQuery) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const productos = request.result;
+                const matches = productos.filter(producto => 
+                    this.normalizeText(producto.codigo).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => {
+                console.error('Error al buscar en productos:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    /**
+     * Busca en códigos secundarios usando índices optimizados
+     */
+    async searchInCodigosSecundariosOptimized(codeQuery) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['codigos_secundarios'], 'readonly');
+            const store = transaction.objectStore('codigos_secundarios');
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const codigosSecundarios = request.result;
+                const matches = codigosSecundarios.filter(codigoSec => 
+                    this.normalizeText(codigoSec.codigo_secundario).includes(codeQuery)
+                );
+                resolve(matches);
+            };
+            
+            request.onerror = () => {
+                console.error('Error al buscar en códigos secundarios:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    /**
+     * Busca en la tabla productos usando índices (método original para compatibilidad)
      */
     async searchInProductos(codeQuery) {
         return new Promise((resolve, reject) => {

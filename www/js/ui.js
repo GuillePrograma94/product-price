@@ -264,26 +264,34 @@ class UIManager {
     }
 
     /**
-     * Maneja la imagen del producto
+     * Maneja la imagen del producto usando la URL de saneamiento-martinez
      */
     handleProductImage(product) {
-        // Por ahora mostramos placeholder, pero aquí se puede implementar
-        // la lógica para cargar imágenes reales si están disponibles
+        // Ocultar imagen actual y mostrar placeholder
         this.elements.productImage.style.display = 'none';
         this.elements.productImagePlaceholder.style.display = 'flex';
         
-        // Si el producto tiene una URL de imagen, se puede implementar aquí
-        if (product.imagen_url) {
-            this.elements.productImage.src = product.imagen_url;
-            this.elements.productImage.onload = () => {
-                this.elements.productImage.style.display = 'block';
-                this.elements.productImagePlaceholder.style.display = 'none';
-            };
-            this.elements.productImage.onerror = () => {
-                this.elements.productImage.style.display = 'none';
-                this.elements.productImagePlaceholder.style.display = 'flex';
-            };
-        }
+        // Crear nueva imagen con URL de saneamiento-martinez
+        const img = new Image();
+        img.src = `https://www.saneamiento-martinez.com/imagenes/articulos/${product.codigo}_1.JPG`;
+        img.alt = `Imagen de ${product.descripcion}`;
+        img.className = 'product-image';
+        
+        img.onload = () => {
+            // Reemplazar placeholder con imagen real
+            this.elements.productImage.src = img.src;
+            this.elements.productImage.alt = img.alt;
+            this.elements.productImage.style.display = 'block';
+            this.elements.productImagePlaceholder.style.display = 'none';
+            console.log('✅ Imagen cargada:', img.src);
+        };
+        
+        img.onerror = () => {
+            // Mantener placeholder si falla la carga
+            this.elements.productImage.style.display = 'none';
+            this.elements.productImagePlaceholder.style.display = 'flex';
+            console.log('❌ Error al cargar imagen:', img.src);
+        };
     }
 
     /**
