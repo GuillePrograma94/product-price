@@ -58,8 +58,6 @@ class BarcodeScanner {
             scannerModal: document.getElementById('scannerModal'),
             closeScannerBtn: document.getElementById('closeScannerBtn'),
             scannerVideo: document.getElementById('scannerVideo'),
-            toggleFlashBtn: document.getElementById('toggleFlashBtn'),
-            switchCameraBtn: document.getElementById('switchCameraBtn'),
             scannerResult: document.getElementById('scannerResult'),
             detectedCode: document.getElementById('detectedCode'),
             searchDetectedBtn: document.getElementById('searchDetectedBtn')
@@ -72,10 +70,6 @@ class BarcodeScanner {
     bindEvents() {
         // Cerrar modal
         this.elements.closeScannerBtn.addEventListener('click', () => this.closeScanner());
-        
-        // Controles de cámara
-        this.elements.toggleFlashBtn.addEventListener('click', () => this.toggleFlash());
-        this.elements.switchCameraBtn.addEventListener('click', () => this.switchCamera());
         
         // Buscar código detectado
         this.elements.searchDetectedBtn.addEventListener('click', () => this.searchDetectedCode());
@@ -239,6 +233,11 @@ class BarcodeScanner {
         this.playSuccessSound();
         
         window.ui.showToast('¡Código detectado!', 'success');
+        
+        // Búsqueda automática del código detectado
+        setTimeout(() => {
+            this.searchDetectedCode();
+        }, 1000); // Esperar 1 segundo para que el usuario vea el código detectado
     }
 
     /**
@@ -285,79 +284,6 @@ class BarcodeScanner {
     }
 
     /**
-     * Verifica soporte de flash
-     */
-    async checkFlashSupport() {
-        try {
-            if (this.stream) {
-                const track = this.stream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                
-                this.hasFlash = capabilities.torch === true;
-                this.elements.toggleFlashBtn.disabled = !this.hasFlash;
-                
-                if (!this.hasFlash) {
-                    this.elements.toggleFlashBtn.textContent = '🔦 No disponible';
-                }
-            }
-        } catch (error) {
-            console.warn('No se pudo verificar soporte de flash:', error);
-            this.hasFlash = false;
-            this.elements.toggleFlashBtn.disabled = true;
-        }
-    }
-
-    /**
-     * Alterna el flash
-     */
-    async toggleFlash() {
-        if (!this.hasFlash || !this.stream) return;
-
-        try {
-            const track = this.stream.getVideoTracks()[0];
-            
-            this.flashEnabled = !this.flashEnabled;
-            
-            await track.applyConstraints({
-                advanced: [{ torch: this.flashEnabled }]
-            });
-            
-            this.elements.toggleFlashBtn.textContent = this.flashEnabled ? '🔦 Apagar' : '🔦 Flash';
-            
-        } catch (error) {
-            console.error('Error al controlar flash:', error);
-            window.ui.showToast('Error al controlar el flash', 'error');
-        }
-    }
-
-    /**
-     * Cambia entre cámara frontal y trasera
-     */
-    async switchCamera() {
-        try {
-            // Cambiar cámara
-            this.currentCamera = this.currentCamera === 'environment' ? 'user' : 'environment';
-            
-            // Reiniciar cámara
-            await this.startCamera();
-            
-            // Reiniciar escaneo
-            this.stopScanning();
-            this.startScanning();
-            
-            const cameraName = this.currentCamera === 'environment' ? 'trasera' : 'frontal';
-            window.ui.showToast(`Cámara ${cameraName} activada`, 'info');
-            
-        } catch (error) {
-            console.error('Error al cambiar cámara:', error);
-            window.ui.showToast('Error al cambiar cámara', 'error');
-            
-            // Revertir cambio
-            this.currentCamera = this.currentCamera === 'environment' ? 'user' : 'environment';
-        }
-    }
-
-    /**
      * Cierra el escáner
      */
     closeScanner() {
@@ -372,9 +298,6 @@ class BarcodeScanner {
         
         // Reset flash
         this.flashEnabled = false;
-        if (this.elements.toggleFlashBtn) {
-            this.elements.toggleFlashBtn.textContent = '🔦 Flash';
-        }
         
         console.log('📷 Escáner cerrado');
     }

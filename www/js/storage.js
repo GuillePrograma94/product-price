@@ -158,71 +158,127 @@ class StorageManager {
     }
 
     /**
-     * Busca productos localmente
+     * Normaliza texto para búsqueda (elimina acentos, espacios extra, etc.)
+     */
+    normalizeText(text) {
+        return text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+            .replace(/\s+/g, ' ') // Normalizar espacios
+            .trim();
+    }
+
+    /**
+     * Divide una consulta en palabras clave
+     */
+    parseQuery(query) {
+        const normalized = this.normalizeText(query);
+        return normalized.split(/\s+/).filter(word => word.length > 0);
+    }
+
+    /**
+     * Calcula la relevancia de un resultado
+     */
+    calculateRelevance(producto, queryWords, codigoSecundario = null) {
+        let score = 0;
+        const codigoNormalizado = this.normalizeText(producto.codigo);
+        const descripcionNormalizada = this.normalizeText(producto.descripcion);
+        
+        // Buscar coincidencias en código
+        for (const word of queryWords) {
+            if (codigoNormalizado.includes(word)) {
+                score += 10; // Alta puntuación para coincidencias en código
+            }
+        }
+        
+        // Buscar coincidencias en descripción
+        for (const word of queryWords) {
+            if (descripcionNormalizada.includes(word)) {
+                score += 5; // Puntuación media para coincidencias en descripción
+            }
+        }
+        
+        // Bonus por coincidencia exacta de código
+        if (codigoNormalizado === queryWords.join('')) {
+            score += 20;
+        }
+        
+        // Bonus por coincidencia exacta de descripción
+        if (descripcionNormalizada === queryWords.join(' ')) {
+            score += 15;
+        }
+        
+        // Bonus si coincide código secundario
+        if (codigoSecundario) {
+            const codigoSecNormalizado = this.normalizeText(codigoSecundario);
+            for (const word of queryWords) {
+                if (codigoSecNormalizado.includes(word)) {
+                    score += 8; // Puntuación alta para códigos secundarios
+                }
+            }
+        }
+        
+        return score;
+    }
+
+    /**
+     * Busca productos con algoritmo inteligente
      */
     async searchProducts(query, limit = 50) {
         try {
             const productos = await this.getProducts();
             const codigos = await this.getSecondaryCodes();
             
-            const queryLower = query.toLowerCase().trim();
+            if (!query || query.trim().length === 0) {
+                return [];
+            }
+            
+            const queryWords = this.parseQuery(query);
             const results = [];
+            const processedCodes = new Set(); // Para evitar duplicados
 
             // Buscar en productos principales
             for (const producto of productos) {
-                if (results.length >= limit) break;
-
-                const matchesCodigo = producto.codigo.toLowerCase().includes(queryLower);
-                const matchesDescripcion = producto.descripcion.toLowerCase().includes(queryLower);
-
-                if (matchesCodigo || matchesDescripcion) {
+                const relevance = this.calculateRelevance(producto, queryWords);
+                
+                if (relevance > 0) {
                     results.push({
                         ...producto,
-                        matchType: matchesCodigo ? 'codigo' : 'descripcion'
+                        relevance: relevance,
+                        matchType: 'producto_principal'
                     });
+                    processedCodes.add(producto.codigo);
                 }
             }
 
             // Buscar en códigos secundarios
             for (const codigo of codigos) {
-                if (results.length >= limit) break;
-
-                const matchesCodigoSec = codigo.codigo_secundario.toLowerCase().includes(queryLower);
-                const matchesDescripcionSec = codigo.descripcion.toLowerCase().includes(queryLower);
-
-                if (matchesCodigoSec || matchesDescripcionSec) {
-                    // Buscar el producto principal correspondiente
-                    const productoPrincipal = productos.find(p => p.codigo === codigo.codigo_principal);
-                    if (productoPrincipal) {
-                        // Evitar duplicados
-                        const yaExiste = results.some(r => r.codigo === productoPrincipal.codigo);
-                        if (!yaExiste) {
-                            results.push({
-                                ...productoPrincipal,
-                                matchType: 'codigo_secundario',
-                                codigoSecundario: codigo.codigo_secundario
-                            });
-                        }
+                const productoPrincipal = productos.find(p => p.codigo === codigo.codigo_principal);
+                
+                if (productoPrincipal && !processedCodes.has(productoPrincipal.codigo)) {
+                    const relevance = this.calculateRelevance(productoPrincipal, queryWords, codigo.codigo_secundario);
+                    
+                    if (relevance > 0) {
+                        results.push({
+                            ...productoPrincipal,
+                            relevance: relevance,
+                            matchType: 'codigo_secundario',
+                            codigoSecundario: codigo.codigo_secundario
+                        });
+                        processedCodes.add(productoPrincipal.codigo);
                     }
                 }
             }
 
-            // Ordenar resultados por relevancia
-            results.sort((a, b) => {
-                // Priorizar coincidencias exactas de código
-                if (a.matchType === 'codigo' && b.matchType !== 'codigo') return -1;
-                if (b.matchType === 'codigo' && a.matchType !== 'codigo') return 1;
-                
-                // Luego códigos secundarios
-                if (a.matchType === 'codigo_secundario' && b.matchType === 'descripcion') return -1;
-                if (b.matchType === 'codigo_secundario' && a.matchType === 'descripcion') return 1;
-                
-                return 0;
-            });
+            // Ordenar por relevancia (mayor a menor)
+            results.sort((a, b) => b.relevance - a.relevance);
 
-            return results;
+            // Limitar resultados
+            return results.slice(0, limit);
+            
         } catch (error) {
-            console.error('❌ Error en búsqueda local:', error);
+            console.error('❌ Error en búsqueda inteligente:', error);
             return [];
         }
     }

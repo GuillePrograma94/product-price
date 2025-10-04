@@ -95,15 +95,15 @@ class UIManager {
                 this.performSearch();
             }
         });
-        this.elements.searchInput.addEventListener('input', (e) => {
-            // Búsqueda en tiempo real si hay más de 2 caracteres
-            const query = e.target.value.trim();
-            if (query.length >= 3) {
-                this.debounceSearch(query);
-            } else if (query.length === 0) {
-                this.clearSearchResults();
-            }
-        });
+        // Eliminar búsqueda automática - solo buscar al presionar botón
+        // this.elements.searchInput.addEventListener('input', (e) => {
+        //     const query = e.target.value.trim();
+        //     if (query.length >= 3) {
+        //         this.debounceSearch(query);
+        //     } else if (query.length === 0) {
+        //         this.clearSearchResults();
+        //     }
+        // });
         
         // Results events
         this.elements.clearResults.addEventListener('click', () => this.clearSearchResults());
