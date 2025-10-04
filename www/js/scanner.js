@@ -343,24 +343,39 @@ class BarcodeScanner {
         // Detener escaneo
         this.stopScanning();
         
-        // Mostrar resultado
-        this.elements.detectedCode.textContent = code;
-        this.elements.scannerResult.style.display = 'block';
+        // Cerrar el modal del escáner inmediatamente
+        this.closeScanner();
+        
+        // Buscar automáticamente el producto
+        this.searchProductAutomatically(code);
         
         // Vibración si está disponible
         if (navigator.vibrate) {
-            navigator.vibrate(200);
+            navigator.vibrate([200, 100, 200]);
         }
         
         // Sonido de éxito (opcional)
         this.playSuccessSound();
-        
-        window.ui.showToast('¡Código detectado!', 'success');
-        
-        // Búsqueda automática del código detectado
-        setTimeout(() => {
-            this.searchDetectedCode();
-        }, 1000); // Esperar 1 segundo para que el usuario vea el código detectado
+    }
+
+    /**
+     * Busca automáticamente un producto por código
+     */
+    async searchProductAutomatically(code) {
+        try {
+            console.log('🔍 Búsqueda automática del código:', code);
+            
+            // Usar el UIManager para buscar el producto
+            if (window.ui) {
+                // Simular escritura en el campo de búsqueda
+                window.ui.elements.codeInput.value = code;
+                // Ejecutar búsqueda
+                await window.ui.searchProduct();
+            }
+            
+        } catch (error) {
+            console.error('❌ Error en búsqueda automática:', error);
+        }
     }
 
     /**

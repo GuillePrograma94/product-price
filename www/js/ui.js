@@ -192,7 +192,8 @@ class UIManager {
         const code = this.elements.codeInput.value.trim();
         
         if (!code) {
-            this.showToast('Introduce un código de producto', 'warning');
+            // this.showToast('Introduce un código de producto', 'warning');
+            console.log('⚠️ Introduce un código de producto');
             this.elements.codeInput.focus();
             return;
         }
@@ -210,20 +211,24 @@ class UIManager {
                 if (products.length === 1) {
                     // Un solo producto encontrado
                     this.displayProduct(products[0]);
-                    this.showToast('Producto encontrado', 'success');
+                    // this.showToast('Producto encontrado', 'success');
+                    console.log('✅ Producto encontrado');
                 } else {
                     // Múltiples productos encontrados
                     this.displayMultipleProducts(code, products);
-                    this.showToast(`${products.length} productos encontrados`, 'info');
+                    // this.showToast(`${products.length} productos encontrados`, 'info');
+                    console.log(`📦 ${products.length} productos encontrados`);
                 }
             } else {
                 this.showNoResults();
-                this.showToast('Producto no encontrado', 'error');
+                // this.showToast('Producto no encontrado', 'error');
+                console.log('❌ Producto no encontrado');
             }
             
         } catch (error) {
             console.error('❌ Error al buscar producto:', error);
-            this.showToast('Error al buscar el producto', 'error');
+            // this.showToast('Error al buscar el producto', 'error');
+            console.log('❌ Error al buscar el producto');
         } finally {
             this.setLoading(false);
         }
@@ -427,7 +432,8 @@ class UIManager {
             window.scanner.openScanner();
         } else {
             console.error('❌ Escáner no disponible');
-            this.showToast('Escáner no disponible', 'error');
+            // this.showToast('Escáner no disponible', 'error');
+            console.log('❌ Escáner no disponible');
         }
     }
 
@@ -591,8 +597,8 @@ window.addEventListener('load', async () => {
     console.log('📄 Estado del DOM:', document.readyState);
     
     // Crear instancia del UIManager
-    window.ui = new UIManager();
-    
+window.ui = new UIManager();
+
     // Inicializar de forma asíncrona
     await window.ui.initialize();
     

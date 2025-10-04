@@ -156,17 +156,13 @@ class StorageManager {
             // Normalizar código de búsqueda
             const normalizedCode = this.normalizeText(codeQuery);
             
-            // Buscar en códigos principales (SKU) usando índices
-            const productos = await this.searchInProductosOptimized(normalizedCode);
-            productos.forEach(producto => {
-                results.add(producto.codigo);
-                processedCodes.add(producto.codigo);
-            });
+            // Detectar si es código EAN (13 dígitos numéricos)
+            const isEAN = /^\d{13}$/.test(codeQuery.trim());
             
-            console.log(`📊 Encontrados ${results.size} productos por código principal`);
-            
-            // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
-            if (results.size < 10) {
+            if (isEAN) {
+                console.log('🍯 Código EAN detectado (13 dígitos), buscando solo en códigos secundarios');
+                
+                // Buscar directamente en códigos secundarios
                 const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
                 for (const codigoSec of codigosSecundarios) {
                     if (!processedCodes.has(codigoSec.codigo_principal)) {
@@ -174,7 +170,30 @@ class StorageManager {
                         processedCodes.add(codigoSec.codigo_principal);
                     }
                 }
-                console.log(`📊 Total después de códigos secundarios: ${results.size} productos`);
+                console.log(`📊 Encontrados ${results.size} productos por código EAN`);
+            } else {
+                console.log('🔍 Código SKU detectado, búsqueda normal');
+                
+                // Buscar en códigos principales (SKU) usando índices
+                const productos = await this.searchInProductosOptimized(normalizedCode);
+                productos.forEach(producto => {
+                    results.add(producto.codigo);
+                    processedCodes.add(producto.codigo);
+                });
+                
+                console.log(`📊 Encontrados ${results.size} productos por código principal`);
+                
+                // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
+                if (results.size < 10) {
+                    const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
+                    for (const codigoSec of codigosSecundarios) {
+                        if (!processedCodes.has(codigoSec.codigo_principal)) {
+                            results.add(codigoSec.codigo_principal);
+                            processedCodes.add(codigoSec.codigo_principal);
+                        }
+                    }
+                    console.log(`📊 Total después de códigos secundarios: ${results.size} productos`);
+                }
             }
             
             // Obtener productos completos
