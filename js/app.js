@@ -96,20 +96,38 @@ class MobileApp {
             // Combinar configuraciones
             this.config = {
                 ...localConfig,
-                supabase: {
-                    supabaseUrl: window.CONFIG.SUPABASE.url,
-                    supabaseKey: window.CONFIG.SUPABASE.anonKey
-                }
+                supabaseUrl: window.CONFIG.SUPABASE.url,
+                supabaseKey: window.CONFIG.SUPABASE.anonKey
             };
             
-            console.log('✅ Configuración cargada');
+            console.log('🔍 Configuración final:', {
+                supabaseUrl: this.config.supabaseUrl ? 'Configurada ✅' : 'Faltante ❌',
+                supabaseKey: this.config.supabaseKey ? 'Configurada ✅' : 'Faltante ❌'
+            });
+            
+            // Guardar configuración actualizada localmente
+            await window.storageManager.saveConfig('supabaseUrl', this.config.supabaseUrl);
+            await window.storageManager.saveConfig('supabaseKey', this.config.supabaseKey);
+            
+            console.log('✅ Configuración cargada desde APK y almacenada localmente');
             
             // Inicializar cliente de Supabase
-            await window.supabaseClient.initialize(this.config.supabase);
+            await window.supabaseClient.initialize(this.config);
             
         } catch (error) {
             console.error('❌ Error al cargar configuración:', error);
-            throw error;
+            
+            // Intentar usar configuración local como fallback
+            const localConfig = await window.storageManager.getAllConfig();
+            if (localConfig.supabaseUrl && localConfig.supabaseKey) {
+                console.log('⚠️ Usando configuración local como fallback');
+                this.config = localConfig;
+                
+                // Inicializar cliente de Supabase con configuración local
+                await window.supabaseClient.initialize(this.config);
+            } else {
+                throw new Error('No hay configuración de Supabase disponible');
+            }
         }
     }
 

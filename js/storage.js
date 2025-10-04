@@ -147,6 +147,40 @@ class StorageManager {
     }
 
     /**
+     * Obtiene estadísticas del almacenamiento (versión asíncrona)
+     */
+    async getStorageStats() {
+        try {
+            const transaction = this.db.transaction(['productos'], 'readonly');
+            const store = transaction.objectStore('productos');
+            const request = store.count();
+            
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    resolve({
+                        productos: request.result,
+                        codigos_secundarios: request.result, // Simplificado para mobile_reader
+                        lastSync: this.getLastSyncTime(),
+                        dbSize: this.estimateDBSize()
+                    });
+                };
+                
+                request.onerror = () => {
+                    reject(request.error);
+                };
+            });
+        } catch (error) {
+            console.error('Error al obtener estadísticas:', error);
+            return {
+                productos: 0,
+                codigos_secundarios: 0,
+                lastSync: null,
+                dbSize: 'Error'
+            };
+        }
+    }
+
+    /**
      * Obtiene estadísticas del almacenamiento
      */
     getStats() {
@@ -170,9 +204,9 @@ class StorageManager {
     }
 
     /**
-     * Obtiene estadísticas síncronas (para uso inmediato)
+     * Obtiene estadísticas síncronas (para uso inmediato en UI)
      */
-    getStats() {
+    getStatsSync() {
         // Versión síncrona para uso inmediato en UI
         return {
             totalProducts: this._cachedProductCount || 0,

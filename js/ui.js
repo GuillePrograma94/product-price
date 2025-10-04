@@ -129,7 +129,7 @@ class UIManager {
      */
     updateSearchStats() {
         if (window.storageManager && window.storageManager.getStats) {
-            const stats = window.storageManager.getStats();
+            const stats = window.storageManager.getStatsSync();
             this.elements.productsCount.textContent = `${stats.totalProducts || 0} productos disponibles`;
         }
     }
@@ -498,7 +498,7 @@ class UIManager {
         return {
             currentProduct: this.currentProduct,
             isLoading: this.isLoading,
-            productsCount: window.storageManager ? window.storageManager.getStats().totalProducts : 0
+            productsCount: window.storageManager ? window.storageManager.getStatsSync().totalProducts : 0
         };
     }
 }
