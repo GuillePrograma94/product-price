@@ -96,10 +96,16 @@ class MobileApp {
             // Combinar configuraciones
             this.config = {
                 ...localConfig,
-                supabase: window.CONFIG.supabase
+                supabase: {
+                    supabaseUrl: window.CONFIG.SUPABASE.url,
+                    supabaseKey: window.CONFIG.SUPABASE.anonKey
+                }
             };
             
             console.log('✅ Configuración cargada');
+            
+            // Inicializar cliente de Supabase
+            await window.supabaseClient.initialize(this.config.supabase);
             
         } catch (error) {
             console.error('❌ Error al cargar configuración:', error);
