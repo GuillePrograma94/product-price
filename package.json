@@ -1,7 +1,7 @@
 {
-  "name": "mobile_reader",
+  "name": "precios-pvp-iva-incluido",
   "version": "1.0.0",
-  "description": "Aplicación móvil para lectura y gestión de productos - Reader versión.",
+  "description": "Aplicación móvil para consulta de precios con IVA incluido",
   "main": "config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

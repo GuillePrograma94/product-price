@@ -420,15 +420,15 @@ class UIManager {
      * Abre el escáner de códigos de barras
      */
     openScanner() {
-        this.elements.scannerModal.style.display = 'flex';
-        this.elements.scannerModal.classList.add('fade-in');
+        console.log('📷 Abriendo escáner...');
         
         // Inicializar escáner
         if (window.scanner) {
-            window.scanner.startScanning();
+            window.scanner.openScanner();
+        } else {
+            console.error('❌ Escáner no disponible');
+            this.showToast('Escáner no disponible', 'error');
         }
-        
-        console.log('📷 Escáner abierto');
     }
 
     /**

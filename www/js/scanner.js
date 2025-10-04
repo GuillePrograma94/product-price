@@ -194,8 +194,35 @@ class BarcodeScanner {
             console.log('📷 Iniciando escaneo...');
             this.isScanning = true;
             
-            // Primero obtener acceso a la cámara
-            await this.getCameraAccess();
+            // Verificar que los elementos estén inicializados
+            if (!this.elements.scannerVideo) {
+                console.error('❌ scannerVideo no encontrado, reinicializando elementos...');
+                this.initializeElements();
+                
+                if (!this.elements.scannerVideo) {
+                    throw new Error('No se pudo encontrar el elemento scannerVideo');
+                }
+            }
+            
+            // Verificar que el video esté listo
+            if (!this.elements.scannerVideo.srcObject) {
+                throw new Error('La cámara no está disponible');
+            }
+            
+            console.log('✅ Elemento scannerVideo encontrado:', this.elements.scannerVideo);
+            
+            // Esperar a que el video esté listo
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout esperando video'));
+                }, 5000);
+                
+                this.elements.scannerVideo.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    this.elements.scannerVideo.play();
+                    resolve();
+                };
+            });
             
             // Luego iniciar el escaneo con ZXing
             this.codeReader.decodeFromVideoDevice(

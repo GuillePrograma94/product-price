@@ -1,7 +1,7 @@
 {
-    "name": "Labels Productos - Reader",
-    "short_name": "Labels Reader",
-    "description": "Aplicación móvil para lectura y gestión de productos",
+    "name": "PRECIOS PVP IVA INCLUIDO",
+    "short_name": "PRECIOS PVP",
+    "description": "Aplicación móvil para consulta de precios con IVA incluido",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#f8fafc",
