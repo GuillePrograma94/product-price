@@ -66,32 +66,61 @@ class SupabaseClient {
     }
 
     /**
-     * Obtiene todos los productos
+     * Descarga todos los productos desde Supabase (con paginación)
      */
-    async getAllProducts() {
+    async downloadProducts(onProgress = null) {
         try {
             if (!this.isConnected) {
                 throw new Error('No hay conexión con Supabase');
             }
-            
-            console.log('📦 Obteniendo productos desde Supabase...');
-            
-            const { data, error } = await this.client
-                .from('productos')
-                .select('codigo, descripcion, pvp')
-                .order('codigo');
-            
-            if (error) {
-                throw error;
+
+            console.log('📦 Descargando productos desde Supabase...');
+            const productos = [];
+            const batchSize = 1000;
+            let offset = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await this.client
+                    .from('productos')
+                    .select('codigo, descripcion, pvp')
+                    .range(offset, offset + batchSize - 1)
+                    .order('codigo');
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    productos.push(...data);
+                    offset += batchSize;
+                    
+                    // Reportar progreso
+                    if (onProgress) {
+                        onProgress({
+                            loaded: productos.length,
+                            total: productos.length + (data.length === batchSize ? batchSize : 0)
+                        });
+                    }
+                    
+                    // Si recibimos menos datos que el batch size, hemos terminado
+                    hasMore = data.length === batchSize;
+                } else {
+                    hasMore = false;
+                }
             }
-            
-            console.log(`✅ ${data.length} productos obtenidos`);
-            return data || [];
-            
+
+            console.log(`✅ Descargados ${productos.length} productos`);
+            return productos;
         } catch (error) {
-            console.error('❌ Error al obtener productos:', error);
+            console.error('❌ Error al descargar productos:', error);
             throw error;
         }
+    }
+
+    /**
+     * Obtiene todos los productos (método legacy para compatibilidad)
+     */
+    async getAllProducts() {
+        return await this.downloadProducts();
     }
 
     /**
@@ -188,6 +217,71 @@ class SupabaseClient {
         } catch (error) {
             console.error('❌ Error al obtener última actualización:', error);
             return new Date().toISOString();
+        }
+    }
+
+    /**
+     * Verifica si necesita actualización comparando hashes (igual que PC)
+     */
+    async verificarActualizacionNecesaria() {
+        try {
+            if (!this.isConnected) {
+                throw new Error('No hay conexión con Supabase');
+            }
+
+            // Obtener versión remota (igual que PC)
+            const { data: versionRemota, error } = await this.client
+                .from('version_control')
+                .select('*')
+                .order('fecha_actualizacion', { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+
+            if (!versionRemota || versionRemota.length === 0) {
+                console.log('📊 No hay información de versión en Supabase');
+                return { necesitaActualizacion: false, versionRemota: null, versionLocal: null };
+            }
+
+            const infoRemota = versionRemota[0];
+
+            // Obtener versión local guardada (hash, no fecha)
+            const versionLocalHash = await window.storageManager.getConfig('version_hash_local');
+            
+            if (!versionLocalHash) {
+                console.log('📊 Primera sincronización - descargando datos');
+                return { necesitaActualizacion: true, versionRemota: infoRemota, versionLocal: null };
+            }
+
+            // Comparar hashes (igual que PC)
+            const versionRemotaHash = infoRemota.version_hash || '';
+            const necesitaActualizacion = versionLocalHash !== versionRemotaHash;
+
+            console.log('📊 Verificación de versión:', {
+                versionLocal: versionLocalHash.substring(0, 8) + '...',
+                versionRemota: versionRemotaHash.substring(0, 8) + '...',
+                necesitaActualizacion: necesitaActualizacion
+            });
+
+            return { necesitaActualizacion, versionRemota: infoRemota, versionLocal: versionLocalHash };
+
+        } catch (error) {
+            console.error('❌ Error al verificar actualización:', error);
+            return { necesitaActualizacion: true, versionRemota: null, versionLocal: null };
+        }
+    }
+
+    /**
+     * Actualiza la versión local guardada
+     */
+    async actualizarVersionLocal(versionRemota) {
+        try {
+            if (versionRemota && versionRemota.version_hash) {
+                await window.storageManager.setConfig('version_hash_local', versionRemota.version_hash);
+                console.log('✅ Versión local actualizada:', versionRemota.version_hash.substring(0, 8) + '...');
+            }
+        } catch (error) {
+            console.error('❌ Error al actualizar versión local:', error);
         }
     }
 

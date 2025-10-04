@@ -216,21 +216,34 @@ class MobileApp {
         window.ui.updateProgress(0.5, 'Descargando productos...');
         
         try {
-            // Obtener productos desde Supabase
-            const products = await window.supabaseClient.getAllProducts();
+            // Descargar productos con progreso
+            const products = await window.supabaseClient.downloadProducts((progress) => {
+                const progressValue = 0.5 + (progress.loaded / (progress.total || progress.loaded)) * 0.3;
+                window.ui.updateProgress(progressValue, `Descargando productos: ${progress.loaded.toLocaleString()}`);
+            });
             
             if (!products || products.length === 0) {
                 throw new Error('No se encontraron productos en la base de datos');
             }
             
-            window.ui.updateProgress(0.7, 'Guardando productos...');
+            window.ui.updateProgress(0.8, 'Guardando productos...');
             
             // Guardar productos en almacenamiento local
             await window.storageManager.saveProducts(products);
             
+            // Actualizar versión local con el hash remoto
+            const versionCheck = await window.supabaseClient.verificarActualizacionNecesaria();
+            if (versionCheck.versionRemota) {
+                await window.supabaseClient.actualizarVersionLocal(versionCheck.versionRemota);
+            }
+            
             window.ui.updateProgress(0.9, 'Finalizando...');
             
             console.log(`✅ ${products.length} productos sincronizados`);
+            
+            // Actualizar estado
+            this.state.productsLoaded = true;
+            this.state.totalProducts = products.length;
             
         } catch (error) {
             console.error('❌ Error al sincronizar productos:', error);
@@ -239,19 +252,20 @@ class MobileApp {
     }
 
     /**
-     * Verifica si necesita actualización
+     * Verifica si necesita actualización usando hash de versión
      */
     async checkIfUpdateNeeded() {
         try {
-            // Verificar última actualización en Supabase
-            const lastUpdate = await window.supabaseClient.getLastUpdateTime();
-            const localLastSync = await window.storageManager.getLastSyncTime();
+            console.log('🔍 Verificando si necesita actualización...');
+            const versionCheck = await window.supabaseClient.verificarActualizacionNecesaria();
             
-            if (!localLastSync || new Date(lastUpdate) > new Date(localLastSync)) {
+            if (versionCheck.necesitaActualizacion) {
+                console.log('📥 Actualización necesaria - hash local diferente al remoto');
                 return true;
+            } else {
+                console.log('✅ Datos locales actualizados - hash coincide');
+                return false;
             }
-            
-            return false;
             
         } catch (error) {
             console.warn('⚠️ No se pudo verificar actualizaciones:', error);
