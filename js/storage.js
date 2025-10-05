@@ -127,6 +127,80 @@ class StorageManager {
     }
 
     /**
+     * Búsqueda para escáner: exacta primero; si no, por prefijo.
+     */
+    async searchProductsForScan(scannedCode) {
+        try {
+            if (!scannedCode || !scannedCode.trim()) return [];
+            const normalized = this.normalizeText(scannedCode.trim());
+
+            const productos = await new Promise((resolve) => {
+                const tx = this.db.transaction(['productos'], 'readonly');
+                const store = tx.objectStore('productos');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
+            });
+
+            const codigosSec = await new Promise((resolve) => {
+                const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
+                const store = tx.objectStore('codigos_secundarios');
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
+            });
+
+            const normalizedPrimaryMap = new Map();
+            for (const p of productos) {
+                normalizedPrimaryMap.set(this.normalizeText(p.codigo), p);
+            }
+
+            const exact = [];
+            const seen = new Set();
+            const pExact = normalizedPrimaryMap.get(normalized);
+            if (pExact) {
+                exact.push(pExact);
+                seen.add(pExact.codigo);
+            }
+
+            for (const sec of codigosSec) {
+                if (this.normalizeText(sec.codigo_secundario) === normalized) {
+                    const principal = productos.find(p => p.codigo === sec.codigo_principal);
+                    if (principal && !seen.has(principal.codigo)) {
+                        exact.push(principal);
+                        seen.add(principal.codigo);
+                    }
+                }
+            }
+
+            if (exact.length > 0) return exact;
+
+            const prefix = [];
+            for (const p of productos) {
+                if (this.normalizeText(p.codigo).startsWith(normalized) && !seen.has(p.codigo)) {
+                    prefix.push(p);
+                    seen.add(p.codigo);
+                }
+            }
+
+            for (const sec of codigosSec) {
+                if (this.normalizeText(sec.codigo_secundario).startsWith(normalized)) {
+                    const principal = productos.find(p => p.codigo === sec.codigo_principal);
+                    if (principal && !seen.has(principal.codigo)) {
+                        prefix.push(principal);
+                        seen.add(principal.codigo);
+                    }
+                }
+            }
+
+            return prefix;
+        } catch (e) {
+            console.error('❌ Error en searchProductsForScan (reader):', e);
+            return [];
+        }
+    }
+
+    /**
      * Normaliza texto para búsqueda (elimina acentos, espacios extra, etc.)
      */
     normalizeText(text) {

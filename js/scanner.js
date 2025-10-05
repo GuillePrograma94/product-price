@@ -346,8 +346,8 @@ class BarcodeScanner {
         // Cerrar el modal del escáner inmediatamente
         this.closeScanner();
         
-        // Buscar automáticamente el producto
-        this.searchProductAutomatically(code);
+            // Buscar automáticamente el producto
+            this.searchProductAutomatically(code);
         
         // Vibración si está disponible
         if (navigator.vibrate) {
@@ -369,8 +369,19 @@ class BarcodeScanner {
             if (window.ui) {
                 // Simular escritura en el campo de búsqueda
                 window.ui.elements.codeInput.value = code;
-                // Ejecutar búsqueda
-                await window.ui.searchProduct();
+                // Ejecutar búsqueda especial para escáner: exacto o prefijo
+                const results = await window.storageManager.searchProductsForScan(code);
+                if (results.length === 1) {
+                    await window.ui.addProductToList(results[0].codigo);
+                    window.ui.showToast(`✅ ${results[0].descripcion} añadido automáticamente`, 'success');
+                } else if (results.length > 1) {
+                    window.ui.elements.codeInput.value = code;
+                    window.ui.performSmartSearch();
+                    window.ui.showToast(`🔍 ${results.length} productos encontrados. Selecciona el correcto.`, 'info');
+                } else {
+                    window.ui.elements.codeInput.value = code;
+                    await window.ui.searchProduct();
+                }
             }
             
         } catch (error) {
