@@ -30,8 +30,20 @@ class BarcodeScanner {
                 await this.loadZXingLibrary();
             }
             
-            this.codeReader = new ZXing.BrowserMultiFormatReader();
-            console.log('✅ ZXing inicializado correctamente');
+            // Configurar hints para optimizar lectura de códigos alfanuméricos
+            const hints = new Map();
+            const formats = [
+                ZXing.BarcodeFormat.CODE_128,  // Principal para códigos alfanuméricos
+                ZXing.BarcodeFormat.CODE_39,   // Alternativo alfanumérico
+                ZXing.BarcodeFormat.EAN_13,    // Para códigos de barras estándar
+                ZXing.BarcodeFormat.EAN_8      // Para códigos cortos
+            ];
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);  // Mejor precisión
+            hints.set(ZXing.DecodeHintType.ASSUME_GS1, false); // No asumir formato GS1
+            
+            this.codeReader = new ZXing.BrowserMultiFormatReader(hints);
+            console.log('✅ ZXing inicializado con optimizaciones para Code128');
         } catch (error) {
             console.error('❌ Error al inicializar ZXing:', error);
         }
@@ -140,12 +152,14 @@ class BarcodeScanner {
                 this.stopCamera();
             }
 
-            // Configurar constraints
+            // Configurar constraints con alta resolución preferida
             const constraints = {
                 video: {
                     facingMode: this.currentCamera,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 1920, min: 640 },     // Full HD preferido, mín 640
+                    height: { ideal: 1080, min: 480 },    // Full HD preferido, mín 480
+                    focusMode: { ideal: 'continuous' },   // Autofocus continuo si disponible
+                    zoom: { ideal: 1.0 }                  // Sin zoom por defecto
                 }
             };
 
@@ -359,18 +373,18 @@ class BarcodeScanner {
     }
 
     /**
-     * Busca automáticamente un producto por código
+     * Busca automáticamente un producto por código (BÚSQUEDA EXACTA desde escáner)
      */
     async searchProductAutomatically(code) {
         try {
-            console.log('🔍 Búsqueda automática del código:', code);
+            console.log('🔍 Búsqueda automática EXACTA del código escaneado:', code);
             
             // Usar el UIManager para buscar el producto
             if (window.ui) {
                 // Simular escritura en el campo de búsqueda
                 window.ui.elements.codeInput.value = code;
-                // Ejecutar búsqueda
-                await window.ui.searchProduct();
+                // Ejecutar búsqueda EXACTA (parámetro true indica que viene del escáner)
+                await window.ui.searchProduct(true);
             }
             
         } catch (error) {
