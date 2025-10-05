@@ -185,9 +185,8 @@ class UIManager {
 
     /**
      * Busca un producto por código
-     * @param {boolean} exactMatch - Si es true, busca coincidencia exacta (desde escáner)
      */
-    async searchProduct(exactMatch = false) {
+    async searchProduct() {
         const code = this.elements.codeInput.value.trim();
         
         if (!code) {
@@ -201,14 +200,10 @@ class UIManager {
             this.setLoading(true);
             this.hideProductSections();
             
-            if (exactMatch) {
-                console.log(`🎯 Búsqueda EXACTA desde escáner: ${code}`);
-            } else {
-                console.log(`🔍 Buscando producto con código: ${code}`);
-            }
+            console.log(`🔍 Buscando producto con código: ${code}`);
             
             // Buscar productos en el almacenamiento local
-            const products = await window.storageManager.searchProductsByCode(code, exactMatch);
+            const products = await window.storageManager.searchProductsByCode(code);
             
             if (products && products.length > 0) {
                 if (products.length === 1) {
