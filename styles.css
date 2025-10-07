@@ -1261,6 +1261,19 @@ body {
     }
 }
 
+/* Vista horizontal - pantallas anchas */
+@media (min-width: 641px) {
+    .search-actions {
+        flex-direction: row;
+        gap: 0.75rem;
+    }
+    
+    .search-btn,
+    .clear-all-btn {
+        flex: 1;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
     .header-content {
@@ -1291,8 +1304,8 @@ body {
         gap: 0.5rem;
     }
     
+    /* Vista vertical: botones en columna */
     .search-btn,
-    .scan-btn,
     .clear-all-btn {
         width: 100%;
         margin: 0;
@@ -1301,6 +1314,12 @@ body {
     .search-actions {
         flex-direction: column;
         gap: 0.5rem;
+    }
+    
+    /* El botón escanear permanece en la misma línea que el input */
+    .scan-btn {
+        width: auto;
+        min-width: 60px;
     }
 }
 
