@@ -144,13 +144,41 @@ class StorageManager {
 
             // 1. Búsqueda directa en productos (código principal) - INSTANTÁNEA
             console.time('⏱️ Búsqueda directa productos');
-            const productoPrincipal = await new Promise((resolve) => {
+            
+            // Intentar con código original primero
+            let productoPrincipal = await new Promise((resolve) => {
                 const tx = this.db.transaction(['productos'], 'readonly');
                 const store = tx.objectStore('productos');
                 const req = store.get(originalCode);
                 req.onsuccess = () => resolve(req.result || null);
                 req.onerror = () => resolve(null);
             });
+            
+            // Si no encuentra, intentar con variaciones de mayúsculas/minúsculas
+            if (!productoPrincipal) {
+                const variations = [
+                    originalCode.toUpperCase(),
+                    originalCode.toLowerCase(),
+                    originalCode.charAt(0).toUpperCase() + originalCode.slice(1).toLowerCase()
+                ];
+                
+                for (const variant of variations) {
+                    if (variant !== originalCode) {
+                        productoPrincipal = await new Promise((resolve) => {
+                            const tx = this.db.transaction(['productos'], 'readonly');
+                            const store = tx.objectStore('productos');
+                            const req = store.get(variant);
+                            req.onsuccess = () => resolve(req.result || null);
+                            req.onerror = () => resolve(null);
+                        });
+                        
+                        if (productoPrincipal) {
+                            console.log(`✅ Encontrado con variante: ${variant}`);
+                            break;
+                        }
+                    }
+                }
+            }
 
             console.timeEnd('⏱️ Búsqueda directa productos');
             if (productoPrincipal) {
@@ -163,13 +191,41 @@ class StorageManager {
 
             // 2. Búsqueda directa en códigos secundarios (EAN) - INSTANTÁNEA
             console.time('⏱️ Búsqueda códigos secundarios');
-            const codigoSecundario = await new Promise((resolve) => {
+            
+            // Intentar con código original primero
+            let codigoSecundario = await new Promise((resolve) => {
                 const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
                 const store = tx.objectStore('codigos_secundarios');
                 const req = store.get(originalCode);
                 req.onsuccess = () => resolve(req.result || null);
                 req.onerror = () => resolve(null);
             });
+            
+            // Si no encuentra, intentar con variaciones de mayúsculas/minúsculas
+            if (!codigoSecundario) {
+                const variations = [
+                    originalCode.toUpperCase(),
+                    originalCode.toLowerCase(),
+                    originalCode.charAt(0).toUpperCase() + originalCode.slice(1).toLowerCase()
+                ];
+                
+                for (const variant of variations) {
+                    if (variant !== originalCode) {
+                        codigoSecundario = await new Promise((resolve) => {
+                            const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
+                            const store = tx.objectStore('codigos_secundarios');
+                            const req = store.get(variant);
+                            req.onsuccess = () => resolve(req.result || null);
+                            req.onerror = () => resolve(null);
+                        });
+                        
+                        if (codigoSecundario) {
+                            console.log(`✅ Código secundario encontrado con variante: ${variant}`);
+                            break;
+                        }
+                    }
+                }
+            }
 
             if (codigoSecundario && !seen.has(codigoSecundario.codigo_principal)) {
                 // Obtener el producto principal
