@@ -58,6 +58,7 @@ class UIManager {
             // Search
             codeInput: document.getElementById('codeInput'),
             searchBtn: document.getElementById('searchBtn'),
+            clearAllBtn: document.getElementById('clearAllBtn'),
             scanBtn: document.getElementById('scanBtn'),
             searchStats: document.getElementById('searchStats'),
             productsCount: document.getElementById('productsCount'),
@@ -126,6 +127,7 @@ class UIManager {
     bindEvents() {
         // Search events
         this.elements.searchBtn.addEventListener('click', () => this.searchProduct());
+        this.elements.clearAllBtn.addEventListener('click', () => this.clearAll());
         this.elements.scanBtn.addEventListener('click', () => this.openScanner());
         
         // Eventos de teclado para búsqueda
@@ -352,19 +354,25 @@ class UIManager {
         const productDiv = document.createElement('div');
         productDiv.className = 'product-option';
         productDiv.innerHTML = `
-            <div class="product-option-header">
-                <span class="product-option-code">${product.codigo}</span>
-                <span class="product-option-price">${precioFinal.toFixed(2)} €</span>
+            <div class="product-option-content">
+                <div class="product-option-image-container">
+                    <img class="product-option-image" src="https://www.saneamiento-martinez.com/imagenes/articulos/${product.codigo}_1.JPG" alt="Imagen de ${product.descripcion}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="product-option-image-placeholder" style="display: none;">
+                        <span class="placeholder-icon-small">📦</span>
                     </div>
-            <div class="product-option-description">${product.descripcion || 'Sin descripción'}</div>
-            <div class="product-option-details">
-                <span class="product-option-category">${product.categoria || 'Sin categoría'}</span>
-                <span class="product-option-secondary">Sec: ${product.codigo_secundario || '-'}</span>
+                </div>
+                <div class="product-option-info">
+                    <div class="product-option-header">
+                        <span class="product-option-code">${product.codigo}</span>
+                        <span class="product-option-price">${precioFinal.toFixed(2)} €</span>
                     </div>
-            <div class="product-option-actions">
-                <button class="select-product-btn" data-product-index="${index}">
-                    Seleccionar este producto
+                    <div class="product-option-description">${product.descripcion || 'Sin descripción'}</div>
+                    <div class="product-option-actions">
+                        <button class="select-product-btn" data-product-index="${index}">
+                            Seleccionar este producto
                         </button>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -589,6 +597,28 @@ class UIManager {
         }, duration);
         
         console.log(`📢 Toast ${type}: ${message}`);
+    }
+
+    /**
+     * Limpia todo: campo de búsqueda, productos mostrados y filtros
+     */
+    clearAll() {
+        // Limpiar campo de búsqueda
+        this.elements.codeInput.value = '';
+        
+        // Limpiar producto actual
+        this.currentProduct = null;
+        
+        // Ocultar todas las secciones de productos
+        this.hideProductSections();
+        
+        // Enfocar el campo de búsqueda
+        this.elements.codeInput.focus();
+        
+        // Mostrar mensaje de confirmación
+        this.showToast('✅ Todo limpiado', 'success');
+        
+        console.log('✅ Todo limpiado');
     }
 
     /**
