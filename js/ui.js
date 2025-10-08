@@ -204,8 +204,8 @@ class UIManager {
             
             console.log(`🔍 Buscando producto con código: ${code}`);
             
-            // Buscar productos en el almacenamiento local
-            const products = await window.storageManager.searchProductsByCode(code);
+            // Buscar productos usando búsqueda exacta optimizada (como el escáner)
+            const products = await window.storageManager.searchProductsExact(code);
             
             if (products && products.length > 0) {
                 if (products.length === 1) {

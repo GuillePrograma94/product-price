@@ -128,51 +128,104 @@ class StorageManager {
 
     /**
      * Búsqueda EXACTA para escáner - solo códigos que coincidan exactamente
+     * OPTIMIZADA: Usa índices de IndexedDB en lugar de getAll()
      */
     async searchProductsExact(scannedCode) {
         try {
             if (!scannedCode || !scannedCode.trim()) return [];
             const normalized = this.normalizeText(scannedCode.trim());
+            const originalCode = scannedCode.trim();
 
-            const productos = await new Promise((resolve) => {
-                const tx = this.db.transaction(['productos'], 'readonly');
-                const store = tx.objectStore('productos');
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result || []);
-                req.onerror = () => resolve([]);
-            });
+            console.time('⏱️ searchProductsExact TOTAL');
+            console.log('🔍 Buscando código:', originalCode, '| Normalizado:', normalized);
 
-            const codigosSec = await new Promise((resolve) => {
-                const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
-                const store = tx.objectStore('codigos_secundarios');
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result || []);
-                req.onerror = () => resolve([]);
-            });
-
-            const exact = [];
+            const results = [];
             const seen = new Set();
 
-            // Buscar coincidencias exactas en códigos principales
-            for (const p of productos) {
-                if (this.normalizeText(p.codigo) === normalized && !seen.has(p.codigo)) {
-                    exact.push(p);
-                    seen.add(p.codigo);
-                }
+            // 1. Búsqueda directa en productos (código principal) - INSTANTÁNEA
+            console.time('⏱️ Búsqueda directa productos');
+            const productoPrincipal = await new Promise((resolve) => {
+                const tx = this.db.transaction(['productos'], 'readonly');
+                const store = tx.objectStore('productos');
+                const req = store.get(originalCode);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+
+            console.timeEnd('⏱️ Búsqueda directa productos');
+            if (productoPrincipal) {
+                console.log('✅ Encontrado en productos:', productoPrincipal.codigo);
+                results.push(productoPrincipal);
+                seen.add(productoPrincipal.codigo);
+            } else {
+                console.log('❌ No encontrado en productos con código exacto');
             }
 
-            // Buscar coincidencias exactas en códigos secundarios
-            for (const sec of codigosSec) {
-                if (this.normalizeText(sec.codigo_secundario) === normalized) {
-                    const principal = productos.find(p => p.codigo === sec.codigo_principal);
-                    if (principal && !seen.has(principal.codigo)) {
-                        exact.push(principal);
-                        seen.add(principal.codigo);
+            // 2. Búsqueda directa en códigos secundarios (EAN) - INSTANTÁNEA
+            console.time('⏱️ Búsqueda códigos secundarios');
+            const codigoSecundario = await new Promise((resolve) => {
+                const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
+                const store = tx.objectStore('codigos_secundarios');
+                const req = store.get(originalCode);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+
+            if (codigoSecundario && !seen.has(codigoSecundario.codigo_principal)) {
+                // Obtener el producto principal
+                const productoPrincipal = await new Promise((resolve) => {
+                    const tx = this.db.transaction(['productos'], 'readonly');
+                    const store = tx.objectStore('productos');
+                    const req = store.get(codigoSecundario.codigo_principal);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+
+                if (productoPrincipal) {
+                    results.push(productoPrincipal);
+                    seen.add(productoPrincipal.codigo);
+                }
+            }
+            console.timeEnd('⏱️ Búsqueda códigos secundarios');
+
+            // 3. Si no encontró con código original, intentar con código normalizado (solo si es diferente)
+            console.log(`📊 Resultados hasta ahora: ${results.length}`);
+            if (results.length === 0 && normalized !== originalCode.toLowerCase()) {
+                console.log('⚠️ Código no encontrado exacto, usando cursor (LENTO)...');
+                console.time('⏱️ Búsqueda con cursor');
+                // Búsqueda con cursor solo si la búsqueda exacta falló
+                const cursorResults = await new Promise((resolve) => {
+                    const tx = this.db.transaction(['productos', 'codigos_secundarios'], 'readonly');
+                    const productosStore = tx.objectStore('productos');
+                    const matches = [];
+                    
+                    const cursorReq = productosStore.openCursor();
+                    cursorReq.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            if (this.normalizeText(cursor.value.codigo) === normalized) {
+                                matches.push(cursor.value);
+                            }
+                            cursor.continue();
+                        } else {
+                            resolve(matches);
+                        }
+                    };
+                    cursorReq.onerror = () => resolve([]);
+                });
+
+                console.timeEnd('⏱️ Búsqueda con cursor');
+                cursorResults.forEach(product => {
+                    if (!seen.has(product.codigo)) {
+                        results.push(product);
+                        seen.add(product.codigo);
                     }
-                }
+                });
             }
 
-            return exact;
+            console.timeEnd('⏱️ searchProductsExact TOTAL');
+            console.log(`✅ Búsqueda exacta completada: ${results.length} resultado(s)`);
+            return results;
         } catch (e) {
             console.error('❌ Error en searchProductsExact:', e);
             return [];
@@ -341,19 +394,42 @@ class StorageManager {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['productos'], 'readonly');
             const store = transaction.objectStore('productos');
-            const request = store.getAll();
             
-            request.onsuccess = () => {
-                const productos = request.result;
-                const matches = productos.filter(producto => 
-                    this.normalizeText(producto.codigo).includes(codeQuery)
-                );
-                resolve(matches);
+            // Intentar búsqueda exacta primero (más rápida)
+            const exactRequest = store.get(codeQuery);
+            
+            exactRequest.onsuccess = () => {
+                if (exactRequest.result) {
+                    // Encontrado exactamente
+                    resolve([exactRequest.result]);
+                } else {
+                    // Búsqueda parcial solo si no hay coincidencia exacta
+                    const cursorRequest = store.openCursor();
+                    const matches = [];
+                    
+                    cursorRequest.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            const normalizedCodigo = this.normalizeText(cursor.value.codigo);
+                            if (normalizedCodigo.includes(codeQuery)) {
+                                matches.push(cursor.value);
+                            }
+                            cursor.continue();
+                        } else {
+                            resolve(matches);
+                        }
+                    };
+                    
+                    cursorRequest.onerror = () => {
+                        console.error('Error al buscar en productos:', cursorRequest.error);
+                        reject(cursorRequest.error);
+                    };
+                }
             };
             
-            request.onerror = () => {
-                console.error('Error al buscar en productos:', request.error);
-                reject(request.error);
+            exactRequest.onerror = () => {
+                console.error('Error al buscar en productos:', exactRequest.error);
+                reject(exactRequest.error);
             };
         });
     }
@@ -365,19 +441,42 @@ class StorageManager {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['codigos_secundarios'], 'readonly');
             const store = transaction.objectStore('codigos_secundarios');
-            const request = store.getAll();
             
-            request.onsuccess = () => {
-                const codigosSecundarios = request.result;
-                const matches = codigosSecundarios.filter(codigoSec => 
-                    this.normalizeText(codigoSec.codigo_secundario).includes(codeQuery)
-                );
-                resolve(matches);
+            // Intentar búsqueda exacta primero
+            const exactRequest = store.get(codeQuery);
+            
+            exactRequest.onsuccess = () => {
+                if (exactRequest.result) {
+                    // Encontrado exactamente
+                    resolve([exactRequest.result]);
+                } else {
+                    // Búsqueda parcial con cursor (más eficiente que getAll)
+                    const cursorRequest = store.openCursor();
+                    const matches = [];
+                    
+                    cursorRequest.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            const normalizedCodigo = this.normalizeText(cursor.value.codigo_secundario);
+                            if (normalizedCodigo.includes(codeQuery)) {
+                                matches.push(cursor.value);
+                            }
+                            cursor.continue();
+                        } else {
+                            resolve(matches);
+                        }
+                    };
+                    
+                    cursorRequest.onerror = () => {
+                        console.error('Error al buscar en códigos secundarios:', cursorRequest.error);
+                        reject(cursorRequest.error);
+                    };
+                }
             };
             
-            request.onerror = () => {
-                console.error('Error al buscar en códigos secundarios:', request.error);
-                reject(request.error);
+            exactRequest.onerror = () => {
+                console.error('Error al buscar en códigos secundarios:', exactRequest.error);
+                reject(exactRequest.error);
             };
         });
     }
