@@ -333,6 +333,8 @@ class StorageManager {
 
     /**
      * Búsqueda ultra-optimizada por código usando índices de IndexedDB
+     * PRIORIZA MATCH EXACTO: Si hay match exacto, devuelve solo ese resultado.
+     * Si no hay match exacto, busca códigos que contengan el texto (substring match).
      */
     async searchProductsByCode(codeQuery) {
         try {
@@ -342,55 +344,77 @@ class StorageManager {
 
             console.log('🔍 Iniciando búsqueda optimizada por código:', codeQuery);
             
-            const results = new Set();
-            const processedCodes = new Set();
-            
-            // Normalizar código de búsqueda
             const normalizedCode = this.normalizeText(codeQuery);
+            const normalizedSearchCode = codeQuery.toUpperCase();
             
-            // Detectar si es código EAN (13 dígitos numéricos)
-            const isEAN = /^\d{13}$/.test(codeQuery.trim());
+            // PASO 1: Buscar match EXACTO en código principal
+            console.log('🎯 Paso 1: Buscando match exacto en código principal...');
+            const productoPrincipal = await new Promise((resolve) => {
+                const tx = this.db.transaction(['productos'], 'readonly');
+                const store = tx.objectStore('productos');
+                const req = store.get(normalizedSearchCode);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+
+            if (productoPrincipal) {
+                console.log('✅ MATCH EXACTO encontrado en código principal:', productoPrincipal.codigo);
+                return [productoPrincipal];
+            }
             
-            if (isEAN) {
-                console.log('🍯 Código EAN detectado (13 dígitos), buscando solo en códigos secundarios');
-                
-                // Buscar directamente en códigos secundarios
-                const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
-                for (const codigoSec of codigosSecundarios) {
-                    if (!processedCodes.has(codigoSec.codigo_principal)) {
-                        results.add(codigoSec.codigo_principal);
-                        processedCodes.add(codigoSec.codigo_principal);
-                    }
-                }
-                console.log(`📊 Encontrados ${results.size} productos por código EAN`);
-            } else {
-                console.log('🔍 Código SKU detectado, búsqueda normal');
-                
-                // Buscar en códigos principales (SKU) usando índices
-                const productos = await this.searchInProductosOptimized(normalizedCode);
-                productos.forEach(producto => {
-                    results.add(producto.codigo);
-                    processedCodes.add(producto.codigo);
+            // PASO 2: Buscar match EXACTO en códigos secundarios
+            console.log('🎯 Paso 2: Buscando match exacto en códigos secundarios...');
+            const codigoSecundario = await new Promise((resolve) => {
+                const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
+                const store = tx.objectStore('codigos_secundarios');
+                const req = store.get(normalizedSearchCode);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+
+            if (codigoSecundario) {
+                const productoPrincipalDeSecundario = await new Promise((resolve) => {
+                    const tx = this.db.transaction(['productos'], 'readonly');
+                    const store = tx.objectStore('productos');
+                    const req = store.get(codigoSecundario.codigo_principal);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
                 });
-                
-                console.log(`📊 Encontrados ${results.size} productos por código principal`);
-                
-                // Buscar en códigos secundarios (EAN) solo si no hay muchos resultados
-                if (results.size < 10) {
-                    const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
-                    for (const codigoSec of codigosSecundarios) {
-                        if (!processedCodes.has(codigoSec.codigo_principal)) {
-                            results.add(codigoSec.codigo_principal);
-                            processedCodes.add(codigoSec.codigo_principal);
-                        }
-                    }
-                    console.log(`📊 Total después de códigos secundarios: ${results.size} productos`);
+
+                if (productoPrincipalDeSecundario) {
+                    console.log('✅ MATCH EXACTO encontrado en código secundario:', codigoSecundario.codigo_secundario);
+                    return [productoPrincipalDeSecundario];
                 }
             }
             
+            // PASO 3: No hay match exacto - Buscar coincidencias parciales (substring)
+            console.log('⚠️ No hay match exacto, buscando coincidencias parciales...');
+            
+            const results = new Set();
+            const processedCodes = new Set();
+            
+            // Buscar en códigos principales que contengan el código buscado
+            const productos = await this.searchInProductosOptimized(normalizedCode);
+            productos.forEach(producto => {
+                results.add(producto.codigo);
+                processedCodes.add(producto.codigo);
+            });
+            
+            console.log(`📊 Encontrados ${results.size} productos por código principal (substring)`);
+            
+            // Buscar en códigos secundarios
+            const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
+            for (const codigoSec of codigosSecundarios) {
+                if (!processedCodes.has(codigoSec.codigo_principal)) {
+                    results.add(codigoSec.codigo_principal);
+                    processedCodes.add(codigoSec.codigo_principal);
+                }
+            }
+            console.log(`📊 Total después de códigos secundarios (substring): ${results.size} productos`);
+            
             // Obtener productos completos
             const productosCompletos = await this.getProductsByCodes(Array.from(results));
-            console.log(`✅ Búsqueda completada: ${productosCompletos.length} resultados finales`);
+            console.log(`✅ Búsqueda completada: ${productosCompletos.length} resultados finales (substring match)`);
             return productosCompletos;
             
         } catch (error) {
