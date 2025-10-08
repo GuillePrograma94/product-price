@@ -68,6 +68,7 @@ class StorageManager {
 
     /**
      * Guarda productos en el almacenamiento local
+     * NORMALIZA códigos a mayúsculas para búsqueda case-insensitive
      */
     async saveProducts(products) {
         return new Promise((resolve, reject) => {
@@ -78,12 +79,18 @@ class StorageManager {
             const total = products.length;
             
             products.forEach(product => {
-                const request = store.put(product);
+                // Normalizar código a MAYÚSCULAS para búsqueda consistente
+                const normalizedProduct = {
+                    ...product,
+                    codigo: product.codigo.toUpperCase()
+                };
+                
+                const request = store.put(normalizedProduct);
                 
                 request.onsuccess = () => {
                     completed++;
                     if (completed === total) {
-                        console.log(`✅ ${total} productos guardados`);
+                        console.log(`✅ ${total} productos guardados (códigos normalizados a MAYÚSCULAS)`);
                         // Actualizar caché de estadísticas
                         this._cachedProductCount = total;
                         resolve();
@@ -145,40 +152,15 @@ class StorageManager {
             // 1. Búsqueda directa en productos (código principal) - INSTANTÁNEA
             console.time('⏱️ Búsqueda directa productos');
             
-            // Intentar con código original primero
-            let productoPrincipal = await new Promise((resolve) => {
+            // Como todos los códigos están en MAYÚSCULAS en la BD, convertir búsqueda
+            const normalizedSearchCode = originalCode.toUpperCase();
+            const productoPrincipal = await new Promise((resolve) => {
                 const tx = this.db.transaction(['productos'], 'readonly');
                 const store = tx.objectStore('productos');
-                const req = store.get(originalCode);
+                const req = store.get(normalizedSearchCode);
                 req.onsuccess = () => resolve(req.result || null);
                 req.onerror = () => resolve(null);
             });
-            
-            // Si no encuentra, intentar con variaciones de mayúsculas/minúsculas
-            if (!productoPrincipal) {
-                const variations = [
-                    originalCode.toUpperCase(),
-                    originalCode.toLowerCase(),
-                    originalCode.charAt(0).toUpperCase() + originalCode.slice(1).toLowerCase()
-                ];
-                
-                for (const variant of variations) {
-                    if (variant !== originalCode) {
-                        productoPrincipal = await new Promise((resolve) => {
-                            const tx = this.db.transaction(['productos'], 'readonly');
-                            const store = tx.objectStore('productos');
-                            const req = store.get(variant);
-                            req.onsuccess = () => resolve(req.result || null);
-                            req.onerror = () => resolve(null);
-                        });
-                        
-                        if (productoPrincipal) {
-                            console.log(`✅ Encontrado con variante: ${variant}`);
-                            break;
-                        }
-                    }
-                }
-            }
 
             console.timeEnd('⏱️ Búsqueda directa productos');
             if (productoPrincipal) {
@@ -192,40 +174,14 @@ class StorageManager {
             // 2. Búsqueda directa en códigos secundarios (EAN) - INSTANTÁNEA
             console.time('⏱️ Búsqueda códigos secundarios');
             
-            // Intentar con código original primero
-            let codigoSecundario = await new Promise((resolve) => {
+            // Como todos los códigos están en MAYÚSCULAS en la BD, convertir búsqueda
+            const codigoSecundario = await new Promise((resolve) => {
                 const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
                 const store = tx.objectStore('codigos_secundarios');
-                const req = store.get(originalCode);
+                const req = store.get(normalizedSearchCode);
                 req.onsuccess = () => resolve(req.result || null);
                 req.onerror = () => resolve(null);
             });
-            
-            // Si no encuentra, intentar con variaciones de mayúsculas/minúsculas
-            if (!codigoSecundario) {
-                const variations = [
-                    originalCode.toUpperCase(),
-                    originalCode.toLowerCase(),
-                    originalCode.charAt(0).toUpperCase() + originalCode.slice(1).toLowerCase()
-                ];
-                
-                for (const variant of variations) {
-                    if (variant !== originalCode) {
-                        codigoSecundario = await new Promise((resolve) => {
-                            const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
-                            const store = tx.objectStore('codigos_secundarios');
-                            const req = store.get(variant);
-                            req.onsuccess = () => resolve(req.result || null);
-                            req.onerror = () => resolve(null);
-                        });
-                        
-                        if (codigoSecundario) {
-                            console.log(`✅ Código secundario encontrado con variante: ${variant}`);
-                            break;
-                        }
-                    }
-                }
-            }
 
             if (codigoSecundario && !seen.has(codigoSecundario.codigo_principal)) {
                 // Obtener el producto principal
@@ -831,6 +787,7 @@ class StorageManager {
 
     /**
      * Guarda códigos secundarios
+     * NORMALIZA códigos a mayúsculas para búsqueda case-insensitive
      */
     async saveSecondaryCodes(codigos) {
         try {
@@ -845,13 +802,18 @@ class StorageManager {
             // Limpiar códigos existentes
             await store.clear();
 
-            // Insertar nuevos códigos
+            // Insertar nuevos códigos normalizados
             for (const codigo of codigos) {
-                await store.add(codigo);
+                const normalizedCodigo = {
+                    ...codigo,
+                    codigo_secundario: codigo.codigo_secundario.toUpperCase(),
+                    codigo_principal: codigo.codigo_principal.toUpperCase()
+                };
+                await store.add(normalizedCodigo);
             }
 
             await this.waitForTransaction(transaction);
-            console.log(`✅ Guardados ${codigos.length} códigos secundarios localmente`);
+            console.log(`✅ Guardados ${codigos.length} códigos secundarios (normalizados a MAYÚSCULAS)`);
         } catch (error) {
             console.error('❌ Error al guardar códigos secundarios:', error);
             throw error;
