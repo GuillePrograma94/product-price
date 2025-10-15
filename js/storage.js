@@ -6,7 +6,7 @@
 class StorageManager {
     constructor() {
         this.dbName = 'LabelsReaderDB';
-        this.dbVersion = 2; // Incrementado para agregar codigos_secundarios
+        this.dbVersion = 3; // Incrementado para corregir estructura de codigos_secundarios (permitir duplicados)
         this.db = null;
         
         // Configuración por defecto
@@ -51,7 +51,8 @@ class StorageManager {
 
                 // Crear almacén de códigos secundarios
                 if (!db.objectStoreNames.contains('codigos_secundarios')) {
-                    const codigosStore = db.createObjectStore('codigos_secundarios', { keyPath: 'codigo_secundario' });
+                    const codigosStore = db.createObjectStore('codigos_secundarios', { keyPath: 'id', autoIncrement: true });
+                    codigosStore.createIndex('codigo_secundario', 'codigo_secundario', { unique: false }); // NO único - permite duplicados
                     codigosStore.createIndex('codigo_principal', 'codigo_principal', { unique: false });
                     codigosStore.createIndex('descripcion', 'descripcion', { unique: false });
                 }
@@ -175,27 +176,35 @@ class StorageManager {
             console.time('⏱️ Búsqueda códigos secundarios');
             
             // Como todos los códigos están en MAYÚSCULAS en la BD, convertir búsqueda
-            const codigoSecundario = await new Promise((resolve) => {
+            const codigosSecundarios = await new Promise((resolve) => {
                 const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
                 const store = tx.objectStore('codigos_secundarios');
-                const req = store.get(normalizedSearchCode);
-                req.onsuccess = () => resolve(req.result || null);
-                req.onerror = () => resolve(null);
+                const index = store.index('codigo_secundario');
+                const req = index.getAll(normalizedSearchCode);
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
             });
 
-            if (codigoSecundario && !seen.has(codigoSecundario.codigo_principal)) {
-                // Obtener el producto principal
-                const productoPrincipal = await new Promise((resolve) => {
-                    const tx = this.db.transaction(['productos'], 'readonly');
-                    const store = tx.objectStore('productos');
-                    const req = store.get(codigoSecundario.codigo_principal);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => resolve(null);
-                });
+            if (codigosSecundarios.length > 0) {
+                console.log(`✅ Encontrados ${codigosSecundarios.length} código(s) secundario(s) exactos`);
+                
+                // Procesar todos los códigos secundarios encontrados
+                for (const codigoSecundario of codigosSecundarios) {
+                    if (!seen.has(codigoSecundario.codigo_principal)) {
+                        // Obtener el producto principal
+                        const productoPrincipal = await new Promise((resolve) => {
+                            const tx = this.db.transaction(['productos'], 'readonly');
+                            const store = tx.objectStore('productos');
+                            const req = store.get(codigoSecundario.codigo_principal);
+                            req.onsuccess = () => resolve(req.result || null);
+                            req.onerror = () => resolve(null);
+                        });
 
-                if (productoPrincipal) {
-                    results.push(productoPrincipal);
-                    seen.add(productoPrincipal.codigo);
+                        if (productoPrincipal) {
+                            results.push(productoPrincipal);
+                            seen.add(productoPrincipal.codigo);
+                        }
+                    }
                 }
             }
             console.timeEnd('⏱️ Búsqueda códigos secundarios');
@@ -364,26 +373,37 @@ class StorageManager {
             
             // PASO 2: Buscar match EXACTO en códigos secundarios
             console.log('🎯 Paso 2: Buscando match exacto en códigos secundarios...');
-            const codigoSecundario = await new Promise((resolve) => {
+            const codigosSecundariosExactos = await new Promise((resolve) => {
                 const tx = this.db.transaction(['codigos_secundarios'], 'readonly');
                 const store = tx.objectStore('codigos_secundarios');
-                const req = store.get(normalizedSearchCode);
-                req.onsuccess = () => resolve(req.result || null);
-                req.onerror = () => resolve(null);
+                const index = store.index('codigo_secundario');
+                const req = index.getAll(normalizedSearchCode);
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
             });
 
-            if (codigoSecundario) {
-                const productoPrincipalDeSecundario = await new Promise((resolve) => {
-                    const tx = this.db.transaction(['productos'], 'readonly');
-                    const store = tx.objectStore('productos');
-                    const req = store.get(codigoSecundario.codigo_principal);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => resolve(null);
-                });
+            if (codigosSecundariosExactos.length > 0) {
+                console.log(`✅ Encontrados ${codigosSecundariosExactos.length} código(s) secundario(s) exactos`);
+                
+                // Obtener productos principales de todos los códigos secundarios
+                const productosPrincipales = [];
+                for (const codigoSecundario of codigosSecundariosExactos) {
+                    const productoPrincipalDeSecundario = await new Promise((resolve) => {
+                        const tx = this.db.transaction(['productos'], 'readonly');
+                        const store = tx.objectStore('productos');
+                        const req = store.get(codigoSecundario.codigo_principal);
+                        req.onsuccess = () => resolve(req.result || null);
+                        req.onerror = () => resolve(null);
+                    });
 
-                if (productoPrincipalDeSecundario) {
-                    console.log('✅ MATCH EXACTO encontrado en código secundario:', codigoSecundario.codigo_secundario);
-                    return [productoPrincipalDeSecundario];
+                    if (productoPrincipalDeSecundario) {
+                        productosPrincipales.push(productoPrincipalDeSecundario);
+                    }
+                }
+                
+                if (productosPrincipales.length > 0) {
+                    console.log('✅ MATCH EXACTO encontrado en código secundario:', codigosSecundariosExactos[0].codigo_secundario);
+                    return productosPrincipales;
                 }
             }
             
@@ -403,8 +423,8 @@ class StorageManager {
             console.log(`📊 Encontrados ${results.size} productos por código principal (substring)`);
             
             // Buscar en códigos secundarios
-            const codigosSecundarios = await this.searchInCodigosSecundariosOptimized(normalizedCode);
-            for (const codigoSec of codigosSecundarios) {
+            const codigosSecundariosParciales = await this.searchInCodigosSecundariosOptimized(normalizedCode);
+            for (const codigoSec of codigosSecundariosParciales) {
                 if (!processedCodes.has(codigoSec.codigo_principal)) {
                     results.add(codigoSec.codigo_principal);
                     processedCodes.add(codigoSec.codigo_principal);
@@ -833,7 +853,7 @@ class StorageManager {
                     codigo_secundario: codigo.codigo_secundario.toUpperCase(),
                     codigo_principal: codigo.codigo_principal.toUpperCase()
                 };
-                await store.add(normalizedCodigo);
+                await store.put(normalizedCodigo); // Usar PUT para manejar duplicados
             }
 
             await this.waitForTransaction(transaction);
